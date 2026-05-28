@@ -6,9 +6,9 @@
 
 ### Thành viên nhóm
 
-| STT | Họ và tên                       | MSSV      | Vai trò                        |
-|-----|----------------------------------|-----------|-------------------------------|
-| 1   | Trương Thế Hải Thịnh (Chan)     | 23725051  | Leader / SOA Backend Architect |
+| STT | Họ và tên                        | MSSV      | Vai trò                        |
+|-----|----------------------------------|-----------|------------------------------- |
+| 1   |                                  |           | Leader / SOA Backend Architect |
 | 2   | Nguyễn Văn A                     | [MSSV]    | Data Engineer                  |
 | 3   | Trần Thị B                       | [MSSV]    | ML / Cloud Engineer            |
 | 4   | Lê Hoàng D                       | [MSSV]    | Frontend Developer             |
