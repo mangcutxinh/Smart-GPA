@@ -27,7 +27,7 @@
 | `feature/simulation-engine`  | Logic core tính điểm đảo (LT/TH/Tích hợp)                   | Chan                        |
 | `feature/ml-prediction`      | MLflow Model dự báo rớt môn (Điểm F)                        | Trần Thị B                  |
 | `feature/client-portal`      | Giao diện Web UI tích hợp thanh trượt giả lập               | Lê Hoàng D                  |
-| `feature/analytics-dashboard`| Kiểm thử Pytest & Databricks SQL Dashboard                  | Phạm Minh E                 |
+| `feature/analytics-dashboard`| Kiểm thử Pytest & Databricks SQL Dashboard                  | Vy                          |
 | `develop`                    | Tích hợp tất cả các feature branch (code ổn định đã review) | Cả nhóm                     |
 | `main`                       | Push cuối cùng – Bản hoàn chỉnh để nộp & deploy             | Cả nhóm                     |
 
