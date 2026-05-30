@@ -1,7 +1,7 @@
 # Databricks Notebook Code Template for Smart-GPA Team
 
 ## 1. Mục đích
-Dùng chung file này để hướng dẫn các thành viên tải code mẫu, import vào Databricks, chạy ETL với Spark, truy cập dữ liệu từ backend FastAPI. Giúp teamwork chuẩn trên cùng 1 repo.
+Dùng chung file này để hướng dẫn các thành viên tải code mẫu, import vào Databricks, chạy ETL với Spark, truy cập dữ liệu từ backend FastAPI. Giúp teamwork chuẩn trên mọi môi trường: Data Engineer (ETL), Backend (API), QA (Test pipeline), ...
 
 ---
 
@@ -19,6 +19,19 @@ git clone https://github.com/mangcutxinh/Smart-GPA.git
 ---
 
 ## 3. Code mẫu: Xử lý real trên hệ thống Databricks (Python + Spark SQL)
+
+### 3.1. BỔ SUNG QUY CHẾ ĐIỂM LIỆT & SỐ HÓA SỐ ĐẦU ĐIỂM THƯỜNG KỲ (Áp dụng từ 2024)
+
+#### A. Số đầu điểm Thường kỳ (TK) theo số tín chỉ:
+- Môn 2 tín chỉ (LT hoặc TH): bắt buộc 2 đầu điểm TK (TK_1, TK_2). Điểm TB = (TK_1 + TK_2)/2
+- Môn 3 tín chỉ (LT hoặc TH): bắt buộc 3 đầu điểm TK (TK_1, TK_2, TK_3). Điểm TB = (TK_1 + TK_2 + TK_3)/3
+- Môn tích hợp (LT+TH): Số hóa tách biệt đầu điểm cho mỗi nhánh (VD: 2TC LT → 2 TK LT, 1TC TH → 1 TK TH)
+
+#### B. Quy chế điểm liệt thực hành:
+- Môn tích hợp hoặc thực hành, nếu điểm TB Thực hành < 3.0 → luôn trả về F bất kể các thành phần khác
+- Trạng thái cảnh báo phải bổ sung lý do "LIỆT THỰC HÀNH"
+
+---
 
 ### A. Tạo bảng cấu hình môn học tự động trên Databricks (Data Engineer)
 
@@ -60,8 +73,15 @@ df_silver_pre = df_bronze.withColumn("so_chi_lt", F.col("so_tiet_lt") / 15) \
                          .withColumn("so_chi_th", F.col("so_tiet_th") / 30) \
                          .withColumn("tong_so_chi", F.col("so_chi_lt") + F.col("so_chi_th"))
 
-# (Xử lý bóc tách trung bình điểm tuỳ loại học phần ở đây... tuỳ logic custom team bạn)
-#
+# --- BỔ SUNG: Tính cột điểm trung bình thực hành (nếu có nhiều cột thực hành)
+ten_cot_th = ["diem_th1", "diem_th2"]  # Ví dụ: tuỳ môn truyền động danh sách cột
+if all(col in df_silver_pre.columns for col in ten_cot_th):
+    df_silver_pre = df_silver_pre.withColumn(
+        "diem_trung_binh_thuc_hanh",
+        sum([F.col(c) for c in ten_cot_th]) / len(ten_cot_th)
+    )
+else:
+    df_silver_pre = df_silver_pre.withColumn("diem_trung_binh_thuc_hanh", F.lit(None))
 
 # Xử lý điểm tích luỹ hiện tại (giả lập/chuẩn)
 df_silver = df_silver_pre.withColumn(
@@ -79,7 +99,7 @@ print("--- Đã nạp dữ liệu tầng Silver ---")
 
 ---
 
-### C. ÁNH XẠ THANG ĐIỂM (Từ Silver sang Gold, Databricks SQL Cell)
+### C. ÁNH XẠ THANG ĐIỂM (Silver sang Gold, có logic ĐIỂM LIỆT) — BỔ SUNG CHẶT LOGIC QUY CHẾ
 
 ```sql
 CREATE OR REPLACE TABLE smartgpa_db.gold_diem_sinh_vien AS
@@ -92,7 +112,13 @@ SELECT
     tong_so_chi,
     diem_tich_luy_hien_tai,
     status_canh_bao,
+    diem_trung_binh_thuc_hanh,
     CASE 
+        -- Điểm liệt thực hành ở môn tích hợp
+        WHEN loai_hoc_phan = 'tich_hop' AND diem_trung_binh_thuc_hanh < 3.0 THEN 'F'
+        -- Điểm liệt thực hành ở môn thực hành
+        WHEN loai_hoc_phan = 'thuc_hanh' AND diem_tich_luy_hien_tai < 3.0 THEN 'F'
+        -- Nếu không liệt thì quy đổi thông thường
         WHEN diem_tich_luy_hien_tai >= 9.0 THEN 'A+'
         WHEN diem_tich_luy_hien_tai >= 8.5 THEN 'A'
         WHEN diem_tich_luy_hien_tai >= 8.0 THEN 'B+'
@@ -102,7 +128,12 @@ SELECT
         WHEN diem_tich_luy_hien_tai >= 5.0 THEN 'D+'
         WHEN diem_tich_luy_hien_tai >= 4.0 THEN 'D'
         ELSE 'F'
-    END AS diem_chu_hien_tai
+    END AS diem_chu_hien_tai,
+    CASE 
+        WHEN (loai_hoc_phan IN ('thuc_hanh', 'tich_hop') AND diem_trung_binh_thuc_hanh < 3.0) 
+        THEN 'CANH BAO: LIET THUC HANH (ROT MON)'
+        ELSE status_canh_bao
+    END AS status_canh_bao_final
 FROM smartgpa_db.silver_diem_sinh_vien;
 ```
 
@@ -121,7 +152,7 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
     )
     cursor = connection.cursor()
     query = f"""
-        SELECT diem_tich_luy_hien_tai, loai_hoc_phan, tong_so_chi 
+        SELECT diem_tich_luy_hien_tai, loai_hoc_phan, tong_so_chi, diem_trung_binh_thuc_hanh, diem_chu_hien_tai, status_canh_bao_final
         FROM smartgpa_db.gold_diem_sinh_vien 
         WHERE student_id = '{student_id}' AND ma_mon = '{ma_mon}'
     """
@@ -140,3 +171,4 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
 - Khi chạy pipeline, hãy push file lên GitHub để đồng bộ version.
 
 **Template này giúp Dev backend, Data Engineer, QA test... đều dễ dàng clone, teamwork và chạy Data pipeline/ETL trên Databricks!**
+
