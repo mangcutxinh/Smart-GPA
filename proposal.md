@@ -8,9 +8,9 @@
 
 | STT | Họ và tên                        | MSSV      | Vai trò                        |
 |-----|----------------------------------|-----------|------------------------------- |
-| 1   |                                  |           | Leader / SOA Backend Architect |
-| 2   | Nguyễn Văn A                     | [MSSV]    | Data Engineer                  |
-| 3   | Trần Thị B                       | [MSSV]    | ML / Cloud Engineer            |
+| 1   | Nguyễn Thị Quỳnh Trang           |           | Leader / SOA Backend Architect |
+| 2   | Vũ Ngọc Thu Phương               | [MSSV]    | Data Engineer                  |
+| 3   | Phan Trần Thảo Vy                | 23670631  | ML / Cloud Engineer            |
 | 4   | Lê Hoàng D                       | [MSSV]    | Frontend Developer             |
 | 5   | Phạm Minh E                      | [MSSV]    | QA / Data Analyst              |
 
@@ -23,11 +23,11 @@
 | Nhánh                        | Chức năng/Module                                            | Người phụ trách             |
 |------------------------------|-------------------------------------------------------------|-----------------------------|
 | `feature/auth-gateway`       | Xác thực, phân quyền JWT (4 vai trò), API Gateway           | Chan                        |
-| `feature/databricks-pipeline`| Hạ tầng Delta Lake, Pipeline ETL nạp điểm thô               | Nguyễn Văn A                |
+| `feature/databricks-pipeline`| Hạ tầng Delta Lake, Pipeline ETL nạp điểm thô               | Vũ Ngọc Thu Phương          |
 | `feature/simulation-engine`  | Logic core tính điểm đảo (LT/TH/Tích hợp)                   | Chan                        |
-| `feature/ml-prediction`      | MLflow Model dự báo rớt môn (Điểm F)                        | Trần Thị B                  |
+| `feature/ml-prediction`      | MLflow Model dự báo rớt môn (Điểm F)                        | Phan Trần Thảo Vy           |
 | `feature/client-portal`      | Giao diện Web UI tích hợp thanh trượt giả lập               | Lê Hoàng D                  |
-| `feature/analytics-dashboard`| Kiểm thử Pytest & Databricks SQL Dashboard                  | Vy                          |
+| `feature/analytics-dashboard`| Kiểm thử Pytest & Databricks SQL Dashboard                  | người bí ẩn                 |
 | `develop`                    | Tích hợp tất cả các feature branch (code ổn định đã review) | Cả nhóm                     |
 | `main`                       | Push cuối cùng – Bản hoàn chỉnh để nộp & deploy             | Cả nhóm                     |
 
