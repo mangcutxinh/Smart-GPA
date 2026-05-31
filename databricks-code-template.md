@@ -99,7 +99,7 @@ print("--- Đã nạp dữ liệu tầng Silver ---")
 
 ---
 
-### C. ÁNH XẠ THANG ĐIỂM (Silver sang Gold, có logic ĐIỂM LIỆT) — BỔ SUNG CHẶT LOGIC QUY CHẾ
+### C. ÁNH XẠ THANG ĐIỂM (Silver sang Gold, cập nhật logic tính điểm tích hợp)
 
 ```sql
 CREATE OR REPLACE TABLE smartgpa_db.gold_diem_sinh_vien AS
@@ -113,20 +113,24 @@ SELECT
     diem_tich_luy_hien_tai,
     status_canh_bao,
     diem_trung_binh_thuc_hanh,
+    -- Tính điểm cuối kỳ cho môn tích hợp dựa trên công thức T = ((LT * chi_lt) + (TH * chi_th)) / (chi_lt + chi_th)
     CASE 
-        -- Điểm liệt thực hành ở môn tích hợp
-        WHEN loai_hoc_phan = 'tich_hop' AND diem_trung_binh_thuc_hanh < 3.0 THEN 'F'
-        -- Điểm liệt thực hành ở môn thực hành
-        WHEN loai_hoc_phan = 'thuc_hanh' AND diem_tich_luy_hien_tai < 3.0 THEN 'F'
-        -- Nếu không liệt thì quy đổi thông thường
-        WHEN diem_tich_luy_hien_tai >= 9.0 THEN 'A+'
-        WHEN diem_tich_luy_hien_tai >= 8.5 THEN 'A'
-        WHEN diem_tich_luy_hien_tai >= 8.0 THEN 'B+'
-        WHEN diem_tich_luy_hien_tai >= 7.0 THEN 'B'
-        WHEN diem_tich_luy_hien_tai >= 6.0 THEN 'C+'
-        WHEN diem_tich_luy_hien_tai >= 5.5 THEN 'C'
-        WHEN diem_tich_luy_hien_tai >= 5.0 THEN 'D+'
-        WHEN diem_tich_luy_hien_tai >= 4.0 THEN 'D'
+        WHEN loai_hoc_phan = 'tich_hop' THEN
+            ((diem_trung_binh_lt * so_chi_lt) + (diem_trung_binh_thuc_hanh * so_chi_th)) / (so_chi_lt + so_chi_th)
+        ELSE diem_tich_luy_hien_tai
+    END AS diem_cuoi_ky_tich_hop,
+    CASE 
+        -- Điểm liệt thực hành ở môn tích hợp hoặc thực hành nếu TH < 3.0
+        WHEN loai_hoc_phan IN ('thuc_hanh', 'tich_hop') AND diem_trung_binh_thuc_hanh < 3.0 THEN 'F'
+        -- Nếu không liệt thì quy đổi thông thường dựa trên diem_tich_luy_hien_tai (hoặc diem_cuoi_ky_tich_hop cho tích hợp)
+        WHEN COALESCE(diem_cuoi_ky_tich_hop, diem_tich_luy_hien_tai) >= 9.0 THEN 'A+'
+        WHEN COALESCE(diem_cuoi_ky_tich_hop, diem_tich_luy_hien_tai) >= 8.5 THEN 'A'
+        WHEN COALESCE(diem_cuoi_ky_tich_hop, diem_tich_luy_hien_tai) >= 8.0 THEN 'B+'
+        WHEN COALESCE(diem_cuoi_ky_tich_hop, diem_tich_luy_hien_tai) >= 7.0 THEN 'B'
+        WHEN COALESCE(diem_cuoi_ky_tich_hop, diem_tich_luy_hien_tai) >= 6.0 THEN 'C+'
+        WHEN COALESCE(diem_cuoi_ky_tich_hop, diem_tich_luy_hien_tai) >= 5.5 THEN 'C'
+        WHEN COALESCE(diem_cuoi_ky_tich_hop, diem_tich_luy_hien_tai) >= 5.0 THEN 'D+'
+        WHEN COALESCE(diem_cuoi_ky_tich_hop, diem_tich_luy_hien_tai) >= 4.0 THEN 'D'
         ELSE 'F'
     END AS diem_chu_hien_tai,
     CASE 
@@ -171,4 +175,3 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
 - Khi chạy pipeline, hãy push file lên GitHub để đồng bộ version.
 
 **Template này giúp Dev backend, Data Engineer, QA test... đều dễ dàng clone, teamwork và chạy Data pipeline/ETL trên Databricks!**
-
