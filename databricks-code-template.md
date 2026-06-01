@@ -113,7 +113,8 @@ SELECT
     diem_tich_luy_hien_tai,
     status_canh_bao,
     diem_trung_binh_thuc_hanh,
-    -- Tính điểm cuối kỳ cho môn tích hợp dựa trên công thức T = ((LT * chi_lt) + (TH * chi_th)) / (chi_lt + chi_th)
+    -- Tính điểm cuối kỳ cho môn tích hợp dựa trên công thức:
+    -- T = ((diem_trung_binh_lt * so_chi_lt) + (diem_trung_binh_thuc_hanh * so_chi_th)) / (so_chi_lt + so_chi_th)
     CASE 
         WHEN loai_hoc_phan = 'tich_hop' THEN
             ((diem_trung_binh_lt * so_chi_lt) + (diem_trung_binh_thuc_hanh * so_chi_th)) / (so_chi_lt + so_chi_th)
