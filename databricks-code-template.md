@@ -121,8 +121,8 @@ SELECT
         ELSE diem_tich_luy_hien_tai
     END AS diem_cuoi_ky_tich_hop,
     CASE 
-        -- Điểm liệt thực hành ở môn tích hợp hoặc thực hành nếu TH < 3.0
-        WHEN loai_hoc_phan IN ('thuc_hanh', 'tich_hop') AND diem_trung_binh_thuc_hanh < 3.0 THEN 'F'
+        -- Điểm liệt: nếu trung bình lý thuyết < 1.0 hoặc thực hành < 3.0 thì F
+        WHEN (diem_trung_binh_lt < 1.0) OR (loai_hoc_phan IN ('thuc_hanh', 'tich_hop') AND diem_trung_binh_thuc_hanh < 3.0) THEN 'F'
         -- Nếu không liệt thì quy đổi thông thường dựa trên diem_tich_luy_hien_tai (hoặc diem_cuoi_ky_tich_hop cho tích hợp)
         WHEN COALESCE(diem_cuoi_ky_tich_hop, diem_tich_luy_hien_tai) >= 9.0 THEN 'A+'
         WHEN COALESCE(diem_cuoi_ky_tich_hop, diem_tich_luy_hien_tai) >= 8.5 THEN 'A'
