@@ -86,6 +86,7 @@ def _build_guaranteed(
 def simulate(req: SimulationRequest) -> SimulationResult:
     """Điều phối tính điểm ngược theo loại học phần"""
     threshold = _get_threshold(req.muc_tieu.value)
+    # Ensure detailed component calculations are available for all types
 
     if req.loai_hoc_phan == HocPhanType.LY_THUYET:
         return _simulate_ly_thuyet(req, threshold)
@@ -294,12 +295,43 @@ def _simulate_thuc_hanh(req: SimulationRequest, threshold: float) -> SimulationR
 
 # ─── Tích hợp ────────────────────────────────────────────────
 
+def _calc_theory_components(req: SimulationRequest, threshold: float) -> dict:
+    """Calculate Theory component values used in integrated courses.
+    Returns a dict with keys:
+        avg_tk: average of regular theory scores (list or single value)
+        gk: mid‑term theory score
+        base: 0.2*avg_tk + 0.3*gk
+        ck_raw: exact final‑exam score needed for theory part
+        ck_needed: ceiling to 0.1 of ck_raw
+    """
+    # Determine average regular theory score
+    tk_list = req.diem_thuong_ky_lt_list or []
+    if not tk_list and req.diem_thuong_ky_lt is not None:
+        avg_tk = req.diem_thuong_ky_lt
+    elif tk_list:
+        avg_tk = sum(tk_list) / len(tk_list)
+    else:
+        avg_tk = 0.0
+    # Mid‑term theory score
+    gk = req.diem_giua_ky_lt
+    gk_val = gk if gk is not None else 0.0
+    base = 0.2 * avg_tk + 0.3 * gk_val
+    ck_raw = (threshold - base) / 0.5 if 0.5 != 0 else 0.0
+    ck_needed = _ceil_1dec(ck_raw)
+    return {
+        "avg_tk": round(avg_tk, 2),
+        "gk": round(gk_val, 2),
+        "base": round(base, 2),
+        "ck_raw": round(ck_raw, 4),
+        "ck_needed": ck_needed,
+    }
+
 def _simulate_tich_hop(req: SimulationRequest, threshold: float) -> SimulationResult:
     """
     T = (T_LT × chi_lt + T_TH × chi_th) / tổng_chi
     → T_LT_min = (threshold × tổng_chi - T_TH × chi_th) / chi_lt
 
-    Nếu có TK_lt + GK_lt: tiếp tục tính sâu → CK_lt cần đạt
+    Ràng buộc đặc biệt: TH phải >= 3.0 mới đủ điều kiện dự thi cuối kỳ lý thuyết.
     """
     loai_str = "Tích hợp"
     chi_lt = req.so_chi_lt
@@ -313,13 +345,11 @@ def _simulate_tich_hop(req: SimulationRequest, threshold: float) -> SimulationRe
             diem_muc_tieu_nguong=threshold,
             diem_can_dat=None,
             is_kha_thi=False,
-            message=(
-                "Vui lòng cung cấp: so_chi_lt, so_chi_th và diem_thuc_hanh_tich_hop"
-            ),
+            message="Vui lòng cung cấp đầy đủ: so_chi_lt, so_chi_th và diem_thuc_hanh_tich_hop.",
             chi_tiet={},
         )
 
-    # Kiểm tra trước: Nếu ĐTB_TH < 3.0 -> luôn trả về F và khóa phép toán (cảnh báo LIET THUC HANH)
+    # 1. Ràng buộc TH >= 3.0 mới được thi cuối kỳ
     if t_th < 3.0:
         return SimulationResult(
             loai_hoc_phan=loai_str,
@@ -328,8 +358,13 @@ def _simulate_tich_hop(req: SimulationRequest, threshold: float) -> SimulationRe
             diem_can_dat=None,
             is_kha_thi=False,
             message="CANH BAO: LIET THUC HANH (ROT MON)",
-            chi_tiet={},
+            chi_tiet={"diem_thuc_hanh": t_th},
         )
+
+    # 2. Kiểm tra dữ liệu lý thuyết (điểm thường kỳ và giữa kỳ) có đầy đủ không
+    has_lt_list = req.diem_thuong_ky_lt_list is not None
+    has_lt_legacy = req.diem_thuong_ky_lt is not None
+    has_gk_lt = req.diem_giua_ky_lt is not None
 
     tong_chi = chi_lt + chi_th
     t_lt_raw = (threshold * tong_chi - t_th * chi_th) / chi_lt
@@ -351,15 +386,8 @@ def _simulate_tich_hop(req: SimulationRequest, threshold: float) -> SimulationRe
         f"để đạt loại {req.muc_tieu.value}"
     )
 
-    # ── Drill-down: tính CK của nhánh LT nếu có các điểm thành phần LT ──
-    has_lt_list = req.diem_thuong_ky_lt_list is not None
-    has_lt_legacy = req.diem_thuong_ky_lt is not None
-    has_gk_lt = req.diem_giua_ky_lt is not None
-
+    # ── Drill-down lý thuyết để tính CK nếu có điểm thành phần ──
     if (has_lt_list or has_lt_legacy) and has_gk_lt:
-        gk_lt = req.diem_giua_ky_lt
-        
-        # Tính toán ĐTB thường kỳ lý thuyết (ĐTB_TK_LT) theo số tín chỉ lý thuyết
         if has_lt_list:
             if len(req.diem_thuong_ky_lt_list) != chi_lt:
                 return SimulationResult(
@@ -375,13 +403,38 @@ def _simulate_tich_hop(req: SimulationRequest, threshold: float) -> SimulationRe
         else:
             dtb_tk_lt = req.diem_thuong_ky_lt
 
-        base_lt = 0.2 * dtb_tk_lt + 0.3 * gk_lt
-        ck_lt_raw = (t_lt_needed - base_lt) / 0.5
+        theory = _calc_theory_components(req, threshold)
+        avg_tk = theory["avg_tk"]
+        gk_lt = theory["gk"]
+        base_lt = theory["base"]
+        ck_lt_raw = (t_lt_needed - base_lt) / 0.5 if 0.5 != 0 else 0.0
         ck_lt_needed = _ceil_1dec(ck_lt_raw)
+
+        if avg_tk < 1.0:
+            return SimulationResult(
+                loai_hoc_phan=loai_str,
+                muc_tieu=req.muc_tieu.value,
+                diem_muc_tieu_nguong=threshold,
+                diem_can_dat=ck_lt_needed,
+                is_kha_thi=False,
+                message="Điểm trung bình lý thuyết dưới 1.0 → F",
+                chi_tiet=chi_tiet_base,
+            )
+        if ck_lt_needed < 3.0:
+            return SimulationResult(
+                loai_hoc_phan=loai_str,
+                muc_tieu=req.muc_tieu.value,
+                diem_muc_tieu_nguong=threshold,
+                diem_can_dat=ck_lt_needed,
+                is_kha_thi=False,
+                message="Điểm cuối kỳ lý thuyết cần đạt dưới 3.0 → F",
+                chi_tiet=chi_tiet_base,
+            )
 
         chi_tiet_base.update({
             "diem_thuong_ky_lt_trung_binh": round(dtb_tk_lt, 2),
             "diem_giua_ky_lt": gk_lt,
+            "base_lt": round(base_lt, 2),
             "ck_lt_can_dat_chinh_xac": round(ck_lt_raw, 4),
             "t_lt_can_dat": t_lt_needed,
         })
