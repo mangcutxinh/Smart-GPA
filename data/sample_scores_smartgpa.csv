@@ -1,0 +1,5 @@
+student_id,student_name,ma_mon,ten_mon,ma_lop_hoc_phan,loai_hoc_phan,so_chi_lt,so_chi_th,thuong_xuyen_1,thuong_xuyen_2,giua_ky,thuc_hanh_1,thuc_hanh_2,thuc_hanh_3
+SV001,Nguyen Van A,INT1002,Co so du lieu,L01,ly_thuyet,3,0,8.0,7.5,7.0,,,
+SV002,Tran Thi B,INT1003,Thuc hanh He dieu hanh,L02,thuc_hanh,0,2,,,,7.0,8.0,8.5
+SV003,Le Van C,INT1001,Lap trinh Python,L01,tich_hop,2,1,8.0,7.5,7.0,8.0,8.5,9.0
+SV004,Pham Thi D,INT1001,Lap trinh Python,L01,tich_hop,2,1,4.0,4.5,4.0,2.0,2.5,3.0
