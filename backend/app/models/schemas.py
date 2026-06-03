@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 # ─────────────────────────────────────────────────────────────
@@ -15,7 +15,6 @@ from pydantic import BaseModel, EmailStr, field_validator
 class UserRole(str, Enum):
     STUDENT = "student"
     LECTURER = "lecturer"
-    ADVISOR = "advisor"
     ADMIN = "admin"
 
 
@@ -24,6 +23,8 @@ class UserCreate(BaseModel):
     password: str
     full_name: str
     role: UserRole
+    faculty_id: Optional[str] = None
+    lecturer_id: Optional[str] = None
 
     @field_validator("password")
     @classmethod
@@ -41,25 +42,36 @@ class UserCreate(BaseModel):
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str = Field(..., description="Email hoac username dang nhap")
     password: str
 
 
 class UserOut(BaseModel):
     id: str
     email: str
+    username: Optional[str] = None
     full_name: str
     role: UserRole
     is_active: bool
     created_at: datetime
+    student_id: Optional[str] = None
+    lecturer_id: Optional[str] = None
+    subjects: Optional[List[str]] = None  # Danh sách mã môn giảng viên được phân công
+    faculty_id: Optional[str] = None
+    major_id: Optional[str] = None
+    must_change_password: bool = False
+    email_verified: bool = False
 
     model_config = {"from_attributes": True}
+
 
 
 class Token(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    must_change_password: bool = False
+    username: Optional[str] = None
 
 
 class RefreshRequest(BaseModel):
@@ -69,6 +81,31 @@ class RefreshRequest(BaseModel):
 class AccessTokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class PasswordOtpRequest(BaseModel):
+    username: str
+    email: EmailStr
+
+
+class PasswordOtpResponse(BaseModel):
+    message: str
+    username: str
+    email: str
+    dev_otp: Optional[str] = None
+
+
+class PasswordChangeWithOtp(BaseModel):
+    username: str
+    otp: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def new_password_min_length(cls, v: str) -> str:
+        if len(v) < 6:
+            raise ValueError("Mat khau moi phai co it nhat 6 ky tu")
+        return v
 
 
 # ─────────────────────────────────────────────────────────────
@@ -159,3 +196,152 @@ class ScoreMappingItem(BaseModel):
     diem_he_4: float
     diem_chu: str
     loai_danh_gia: str  # "Đạt" / "Không Đạt"
+
+
+class SimulationCalcRequest(BaseModel):
+    """Yêu cầu giả lập tích hợp bảng Gold Databricks"""
+    student_id: str
+    ma_mon: str
+    diem_chu_muc_tieu: DiemChuTarget
+
+
+class ActivityLogOut(BaseModel):
+    """Schema nhật ký hoạt động hệ thống"""
+    id: str
+    actor_email: str
+    actor_name: str
+    action: str  # "upload" hoặc "edit"
+    subject_id: str
+    subject_name: str
+    details: str
+    timestamp: str
+
+
+class GradeEditRequest(BaseModel):
+    """Yêu cầu sửa điểm học viên"""
+    student_id: str
+    ma_mon: str
+    diem_thong_thuong_list: Optional[List[float]] = None
+    diem_giua_ky: Optional[float] = None
+    diem_thuc_hanh_hien_tai: Optional[List[float]] = None
+    diem_thuc_hanh_tich_hop: Optional[float] = None
+
+
+class PredictRiskRequest(BaseModel):
+    """Yêu cầu dự đoán xác suất rớt từ ML model"""
+    diem_thuong_ky: float
+    diem_giua_ky: float
+
+
+class EmailWarningRequest(BaseModel):
+    """Yêu cầu gửi email cảnh báo học vụ khẩn cấp"""
+    student_id: str
+    student_name: str
+    ma_mon: str
+    ten_mon: str
+    reason: str
+    fail_risk: float
+
+
+
+
+
+# -----------------------------------------------------------------
+# Admin Management Schemas
+# -----------------------------------------------------------------
+
+class SemesterConfig(BaseModel):
+    ma_hoc_ky: str
+    nam_hoc: str
+
+
+class SemesterOut(BaseModel):
+    ma_hoc_ky: str
+    nam_hoc: str
+    display: str
+
+
+class CourseConfig(BaseModel):
+    id: str
+    name: str
+    type: str
+    credits: int
+    chi_lt: int = 0
+    chi_th: int = 0
+    faculty_id: Optional[str] = None
+    major_id: Optional[str] = None
+    is_compulsory: bool = True
+
+
+class AssignmentConfig(BaseModel):
+    lecturer_id: str
+    ma_mon: str
+    ma_lop: str
+
+
+class AssignmentOut(BaseModel):
+    id: str
+    lecturer_id: str
+    ma_mon: str
+    ma_lop: str
+    hoc_ky: str
+
+
+class UnitConfig(BaseModel):
+    id: str
+    name: str
+    type: str  # "khoa" or "vien"
+
+
+class MajorConfig(BaseModel):
+    id: str
+    name: str
+    faculty_id: str
+
+
+class LecturerUpdate(BaseModel):
+    full_name: str
+    email: EmailStr
+    faculty_id: Optional[str] = None
+
+
+class ProjectInfoUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    owner: Optional[str] = None
+    status: Optional[str] = None
+
+
+class TimelineUpdateCreate(BaseModel):
+    title: str
+    category: str = "project"
+    details: str
+
+
+class AdminGradeUpdate(BaseModel):
+    diem_thong_thuong: Optional[List[float]] = None
+    diem_giua_ky: Optional[float] = None
+    diem_cuoi_ky: Optional[float] = None
+    diem_thuc_hanh_hien_tai: Optional[List[float]] = None
+    diem_thuc_hanh_tich_hop: Optional[float] = None
+    diem_thuong_ky_lt_list: Optional[List[float]] = None
+    diem_giua_ky_lt: Optional[float] = None
+    reason: Optional[str] = None
+
+
+class WarningSendRequest(BaseModel):
+    student_id: str
+    student_name: str
+    ma_mon: str
+    ten_mon: str
+    reason: str
+    fail_risk: float
+    channel: str = "in_app"
+
+
+class GradingRulesUpdate(BaseModel):
+    version: Optional[str] = None
+    theory_weights: Optional[dict] = None
+    practice_min_pass: Optional[float] = None
+    integrated_default_credits: Optional[dict] = None
+    grade_mapping: Optional[List[dict]] = None

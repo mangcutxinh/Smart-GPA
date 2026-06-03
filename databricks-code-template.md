@@ -73,7 +73,7 @@ df_silver_pre = df_bronze.withColumn("so_chi_lt", F.col("so_tiet_lt") / 15) \
                          .withColumn("so_chi_th", F.col("so_tiet_th") / 30) \
                          .withColumn("tong_so_chi", F.col("so_chi_lt") + F.col("so_chi_th"))
 
-# --- BỔ SUNG: Tính cột điểm trung bình thực hành (nếu có nhiều cột thực hành)
+# --- BỔ SUNG: Tính điểm trung bình thực hành (nếu có nhiều cột thực hành)
 ten_cot_th = ["diem_th1", "diem_th2"]  # Ví dụ: tuỳ môn truyền động danh sách cột
 if all(col in df_silver_pre.columns for col in ten_cot_th):
     df_silver_pre = df_silver_pre.withColumn(
@@ -83,10 +83,28 @@ if all(col in df_silver_pre.columns for col in ten_cot_th):
 else:
     df_silver_pre = df_silver_pre.withColumn("diem_trung_binh_thuc_hanh", F.lit(None))
 
-# Xử lý điểm tích luỹ hiện tại (giả lập/chuẩn)
+# --- BỔ SUNG: Tách chuỗi điểm thường kỳ và tính điểm trung bình lý thuyết
+df_silver_pre = df_silver_pre.withColumn(
+    "diem_tk_list", 
+    F.split(F.col("diem_thong_thuong"), ";")
+)
+# Tính trung bình cộng thường kỳ lý thuyết
+df_silver_pre = df_silver_pre.withColumn(
+    "diem_trung_binh_lt",
+    F.aggregate(
+        F.col("diem_tk_list"), 
+        F.lit(0.0), 
+        lambda acc, x: acc + x.cast("float")
+    ) / F.size(F.col("diem_tk_list"))
+)
+
+# Xử lý điểm tích luỹ hiện tại theo từng loại môn học (thay vì gán cứng 8.2)
 df_silver = df_silver_pre.withColumn(
     "diem_tich_luy_hien_tai",
-    F.lit(8.2).cast("float") # demo: hardcode, thực tế dùng công thức cụ thể
+    F.when(F.col("loai_hoc_phan") == "ly_thuyet", 
+           F.col("diem_trung_binh_lt") * 0.2 + F.col("diem_giua_ky") * 0.3 + F.col("diem_cuoi_ky") * 0.5)
+     .when(F.col("loai_hoc_phan") == "thuc_hanh", F.col("diem_trung_binh_thuc_hanh"))
+     .otherwise(F.col("diem_trung_binh_lt") * 0.2 + F.col("diem_giua_ky") * 0.3) # Tạm tính cho tích hợp trước CK
 ).withColumn(
     "status_canh_bao",
     F.when(F.col("diem_tich_luy_hien_tai") < 4.0, "Nguy co rot mon")
@@ -121,8 +139,8 @@ SELECT
         ELSE diem_tich_luy_hien_tai
     END AS diem_cuoi_ky_tich_hop,
     CASE 
-        -- Điểm liệt thực hành ở môn tích hợp hoặc thực hành nếu TH < 3.0
-        WHEN loai_hoc_phan IN ('thuc_hanh', 'tich_hop') AND diem_trung_binh_thuc_hanh < 3.0 THEN 'F'
+        -- Điểm liệt: nếu trung bình lý thuyết < 1.0 hoặc thực hành < 3.0 thì F
+        WHEN (diem_trung_binh_lt < 1.0) OR (loai_hoc_phan IN ('thuc_hanh', 'tich_hop') AND diem_trung_binh_thuc_hanh < 3.0) THEN 'F'
         -- Nếu không liệt thì quy đổi thông thường dựa trên diem_tich_luy_hien_tai (hoặc diem_cuoi_ky_tich_hop cho tích hợp)
         WHEN COALESCE(diem_cuoi_ky_tich_hop, diem_tich_luy_hien_tai) >= 9.0 THEN 'A+'
         WHEN COALESCE(diem_cuoi_ky_tich_hop, diem_tich_luy_hien_tai) >= 8.5 THEN 'A'

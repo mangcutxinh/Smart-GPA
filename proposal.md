@@ -1,319 +1,548 @@
----
-
 # PROJECT PROPOSAL
 
-## THÔNG TIN CHUNG
+# SMARTGPA - Academic Analytics & Grade Prediction Platform
 
-### Thành viên nhóm
+## 1. Thông Tin Chung
 
-| STT | Họ và tên                        | MSSV      | Vai trò                        |
-|-----|----------------------------------|-----------|------------------------------- |
-| 1   |                                  |           | Leader / SOA Backend Architect |
-| 2   | Nguyễn Văn A                     | [MSSV]    | Data Engineer                  |
-| 3   | Trần Thị B                       | [MSSV]    | ML / Cloud Engineer            |
-| 4   | Lê Hoàng D                       | [MSSV]    | Frontend Developer             |
-| 5   | Phạm Minh E                      | [MSSV]    | QA / Data Analyst              |
+### 1.1 Thành viên nhóm
 
-- **Git Repository**: [https://github.com/TruongTheHaiThinh/SmartGPA-Academic-Analytics-Platform](https://github.com/TruongTheHaiThinh/SmartGPA-Academic-Analytics-Platform)
+| STT | Họ và tên | MSSV | Vai trò |
+| --- | --- | --- | --- |
+| 1 |  |  | Leader / SOA Backend Architect |
+| 2 | Nguyễn Văn A | [MSSV] | Data Engineer |
+| 3 | Trần Thị B | [MSSV] | ML / Cloud Engineer |
+| 4 | Lê Hoàng D | [MSSV] | Frontend Developer |
+| 5 | Phạm Minh E | [MSSV] | QA / Data Analyst |
 
----
+**Git Repository:** [https://github.com/TruongTheHaiThinh/SmartGPA-Academic-Analytics-Platform](https://github.com/TruongTheHaiThinh/SmartGPA-Academic-Analytics-Platform)
 
-### Cấu trúc nhánh Git & Chức năng
+### 1.2 Cấu trúc nhánh Git
 
-| Nhánh                        | Chức năng/Module                                            | Người phụ trách             |
-|------------------------------|-------------------------------------------------------------|-----------------------------|
-| `feature/auth-gateway`       | Xác thực, phân quyền JWT (4 vai trò), API Gateway           | Chan                        |
-| `feature/databricks-pipeline`| Hạ tầng Delta Lake, Pipeline ETL nạp điểm thô               | Nguyễn Văn A                |
-| `feature/simulation-engine`  | Logic core tính điểm đảo (LT/TH/Tích hợp)                   | Chan                        |
-| `feature/ml-prediction`      | MLflow Model dự báo rớt môn (Điểm F)                        | Trần Thị B                  |
-| `feature/client-portal`      | Giao diện Web UI tích hợp thanh trượt giả lập               | Lê Hoàng D                  |
-| `feature/analytics-dashboard`| Kiểm thử Pytest & Databricks SQL Dashboard                  | Phạm Minh E                 |
-| `develop`                    | Tích hợp tất cả các feature branch (code ổn định đã review) | Cả nhóm                     |
-| `main`                       | Push cuối cùng – Bản hoàn chỉnh để nộp & deploy             | Cả nhóm                     |
-
-> **Quy trình làm việc:**
-> - Mỗi thành viên làm việc trên nhánh `feature/*` được phân công.
-> - Khi hoàn thành module tạo PR vào `develop`, leader review & approve.
-> - Chỉ merge duy nhất 1 lần vào `main` khi toàn hệ thống ổn định, không commit trực tiếp vào `main`.
-
----
-
-# MÔ TẢ DỰ ÁN: SMARTGPA – HỆ THỐNG PHÂN TÍCH HỌC THUẬT, GIẢ LẬP ĐIỂM MỤC TIÊU VÀ DỰ BÁO CẢNH BÁO HỌC VỤ
-
-## 1. Ý TƯỞNG DỰ ÁN (THE VISION)
-
-**Tổng quan nền tảng**
-
-Trong kỷ nguyên giáo dục số, việc kết nối dữ liệu học thuật giữa Nhà trường và Sinh viên thường gặp tình trạng rời rạc, thiếu tính dự báo thời gian thực. Nhóm chúng tôi quyết định xây dựng **SmartGPA** – một nền tảng hướng dịch vụ (SOA) kết hợp điện toán đám mây nhằm ứng dụng dữ liệu điểm số khổng lồ thành các thông tin phân tích có giá trị định hướng hành động. Hệ thống đóng vai trò như một **"Trung tâm phân tích và dự báo học thuật thông minh"** cho các trường đại học.
-
-**3 Trụ cột kỹ thuật của SmartGPA:**
-
-* **Service-Oriented Architecture (SOA):** Tách biệt và module hóa hoàn toàn giữa tầng giao diện người dùng (Frontend Portal), hệ thống định tuyến trung tâm (FastAPI Backend Gateway) và công cụ xử lý dữ liệu đám mây (Databricks Core).
-* **Inverse Calculation Engine (Thuật toán tính điểm đảo):** Tự động bóc tách loại học phần (Lý thuyết, Thực hành, Tích hợp) theo đúng quy chế đào tạo, hỗ trợ sinh viên kéo chọn mục tiêu điểm chữ (A+ đến D) để tự động tính ngược ra số điểm thành phần/cuối kỳ tối thiểu cần đạt.
-* **Predictive Analytics Table (Hồ sơ dự báo học vụ):** Ứng dụng kiến trúc Delta Lake (Bronze - Silver - Gold) và Machine Learning trên Databricks để phân tích tiến độ điểm số của hàng ngàn sinh viên, tự động gắn tag cảnh báo sớm nguy cơ rớt môn (Điểm F) giúp Cố vấn học tập chủ động can thiệp.
-
----
-
-## 2. VAI TRÒ NGƯỜI DÙNG & PHÂN QUYỀN
-
-Hệ thống được thiết kế phân quyền nghiêm ngặt với **4 vai trò người dùng** thông qua kiến trúc phân tầng bảo mật:
-
-| **Vai trò** | **Tên gọi** | **Mô tả quyền hạn trên hệ thống** |
+| Nhánh | Chức năng / Module | Người phụ trách |
 | --- | --- | --- |
-| Sinh viên | Student | Tra cứu bảng điểm cá nhân; Sử dụng công cụ kéo trượt giả lập mục tiêu để xem gợi ý điểm thi cần đạt; Nhận thông báo cảnh báo học vụ. |
-| Giảng viên | Lecturer | Quản lý học phần được phân công; Cấu hình thuộc tính môn học (số tín chỉ lý thuyết/thực hành); Upload file bảng điểm thành phần thô (CSV/Excel) của lớp. |
-| Cố vấn học tập | Academic Advisor | Quản lý danh sách sinh viên lớp chủ nhiệm; Xem danh sách sinh viên bị hệ thống gắn cờ nguy cơ rớt môn; Nhận báo cáo phân tích học vụ tự động. |
-| Admin Hệ thống | Đào tạo Admin | Quản lý tài khoản; Cấu hình các mốc điểm quy đổi thang điểm chữ (A+ đến F) toàn trường; Xem Dashboard tổng quan hiệu suất học tập toàn trường. |
+| `feature/auth-gateway` | Xác thực JWT, phân quyền, API Gateway | Chan |
+| `feature/student-service` | Quản lý hồ sơ sinh viên, tra cứu điểm cá nhân | Chan |
+| `feature/grade-prediction-service` | Dự báo nguy cơ rớt môn, cảnh báo học vụ | Trần Thị B |
+| `feature/grade-target-service` | Tính điểm mục tiêu, giả lập điểm cuối kỳ | Chan |
+| `feature/databricks-pipeline` | Delta Lake, PySpark ETL, bảng Bronze/Silver/Gold | Nguyễn Văn A |
+| `feature/client-dashboard` | Web Dashboard cho Student/Lecturer/Admin | Lê Hoàng D |
+| `feature/analytics-dashboard` | Spark SQL Analytics, test tích hợp, báo cáo | Phạm Minh E |
+| `develop` | Tích hợp các module đã review | Cả nhóm |
+| `main` | Bản ổn định để nộp và demo | Cả nhóm |
 
 ---
 
-## 3. CHI TIẾT NGHIỆP VỤ (BUSINESS LOGIC)
+## 2. Mô Tả Dự Án
 
-### 3.1 Quy trình xử lý điểm tổng thể
+SmartGPA là hệ thống phân tích học thuật và giả lập điểm mục tiêu cho sinh viên. Hệ thống cho phép giảng viên tải file điểm quá trình, tự động xử lý dữ liệu trên Databricks, lưu trữ theo mô hình Delta Lake, dự báo nguy cơ học vụ bằng MLlib và cung cấp công cụ để sinh viên biết cần đạt bao nhiêu điểm cuối kỳ để chạm tới điểm chữ mong muốn.
 
-| **Bước** | **Tác nhân** | **Hành động nghiệp vụ hệ thống** |
+Mục tiêu chính của dự án:
+
+- Xây dựng kiến trúc hướng dịch vụ gồm Web Dashboard, API Gateway và các service nghiệp vụ độc lập.
+- Chuẩn hóa luồng dữ liệu điểm học phần từ file CSV đến Data Lake.
+- Tính toán điểm quá trình, điểm mục tiêu và cảnh báo học vụ theo quy chế đào tạo.
+- Tích hợp Databricks Platform cho ETL, MLlib và Spark SQL Analytics.
+- Cung cấp dashboard phân tích cho sinh viên, giảng viên và quản trị viên.
+
+---
+
+## 3. Vai Trò Người Dùng
+
+| Vai trò | Tên hệ thống | Quyền chính |
 | --- | --- | --- |
-| 1 | Giảng viên | Khởi tạo lớp học phần → Cấu hình số tín chỉ (Mấy chỉ lý thuyết, mấy chỉ thực hành) → Tải lên file điểm thành phần (`diem_thao.csv`). |
-| 2 | Hệ thống | API Backend tiếp nhận file, đẩy dữ liệu vào tầng **Bronze (Raw)** trên Databricks Delta Lake. |
-| 3 | Databricks | Tự động kích hoạt Spark Job làm sạch dữ liệu, liên kết bảng cấu hình môn học để lấy trọng số và tính điểm trung bình hiện tại chuyển sang tầng **Silver**. |
-| 4 | Hệ thống | Áp dụng quy chế làm tròn đến **một chữ số thập phân (0.1)** và ánh xạ tự động sang thang điểm 4 và thang điểm chữ (A+ đến F) lưu vào tầng **Gold**. |
-| 5 | Sinh viên | Đăng nhập hệ thống → Xem bảng điểm hiện tại → Trình trạng học vụ hiển thị màu xanh (`An toàn`) hoặc nhấp nháy đỏ (`Nguy cơ rớt môn`). |
-| 6 | Sinh viên | Kích hoạt lệnh Giả lập → Chọn mức điểm chữ mong muốn đạt được (Ví dụ: Loại A). |
-| 7 | Hệ thống | Backend Gateway gọi Databricks Serverless Endpoint thực hiện thuật toán tính toán đảo để tìm số điểm tối thiểu cần đạt ở bài thi cuối kỳ. |
-| 8 | Hệ thống | Trả về kết quả tức thì trên UI: *"Bạn cần đạt tối thiểu 8.8 điểm thi cuối kỳ nhánh lý thuyết để đạt loại A môn này"*. |
-| 9 | Cố vấn | Truy cập Dashboard → Xem danh sách sinh viên thuộc diện cảnh báo học vụ dự báo sớm để tiến hành đôn đốc. |
+| Sinh viên | Student | Xem điểm cá nhân, chọn điểm chữ mục tiêu, nhận gợi ý điểm cuối kỳ cần đạt, xem cảnh báo học vụ. |
+| Giảng viên | Lecturer | Upload file điểm CSV, xem danh sách lớp học phần, cập nhật điểm thành phần, theo dõi cảnh báo của lớp. |
+| Quản trị học vụ | Academic Admin | Theo dõi dashboard toàn trường, xem danh sách sinh viên có nguy cơ, quản lý báo cáo học vụ. |
+| Admin hệ thống | System Admin | Quản lý tài khoản, phân quyền, cấu hình môn học, cấu hình thang điểm và tham số hệ thống. |
 
-### 3.2 Quy chế tính điểm chi tiết (Theo tài liệu trường)
+---
 
-Hệ thống tự động phân tách logic tính điểm tổng kết (T) dựa trên thuộc tính môn học do Giảng viên cấu hình:
+## 4. Kiến Trúc Tổng Thể
 
-1. **Học phần Lý thuyết:**
+SmartGPA được thiết kế theo kiến trúc SOA. Web Dashboard không xử lý nghiệp vụ trực tiếp mà gửi request về API Gateway. API Gateway điều phối đến ba service chính: Student Service, Grade Prediction Service và Grade Target Service. Các service này đọc/ghi dữ liệu thông qua Databricks Platform, nơi vận hành Data Lake, ETL Pipeline, ML Model và Spark SQL Analytics.
 
-T = 20% × (ĐTB Thường kỳ) + 30% × (Điểm giữa kỳ) + 50% × (Điểm cuối kỳ)
+### 4.1 Sơ đồ kiến trúc dạng khối
 
-2. **Học phần Thực hành:**
+```text
+                    User
+                     |
+                     v
+              Web Dashboard
+                     |
+                     v
+                API Gateway
+                     |
+       +-------------+-------------+
+       v             v             v
 
-T = (Điểm thực hành_1 + Điểm thực hành_2 + ... + Điểm thực hành_x)/x
+  Student      Grade Prediction   Grade Target
+  Service          Service          Service
 
-3. **Học phần Tích hợp (Cả lý thuyết và thực hành):**
+       |             |              |
+       +-------------+--------------+
+                     |
+                     v
 
-T = ((Điểm lý thuyết × Số chỉ lý thuyết) + (Điểm thực hành × Số chỉ thực hành))/(Tổng số chỉ học phần)
+             Databricks Platform
+                     |
+       +-------------+-------------+
+       v             v             v
 
-### 3.3 State Machine – Vòng đời của một bản ghi điểm số
+  Data Lake     ETL Pipeline      ML Model
+ (Delta Lake)    (PySpark)        (MLlib)
 
-| **Trạng thái từ** | **Trạng thái đến** | **Điều kiện / Tác nhân kích hoạt** |
-| --- | --- | --- |
-| `[*] (Khởi tạo)` | RAW_UPLOADED | Giảng viên upload file bảng điểm thành phần thô lên hệ thống |
-| RAW_UPLOADED | PROCESSING | Databricks Pipeline tự động kích hoạt nạp dữ liệu vào Delta Lake |
-| PROCESSING | ACTIVE_CALCULATED | Hoàn thành tính toán ĐTB thành phần hiện tại, làm tròn đến 0.1 và phân loại ban đầu |
-| ACTIVE_CALCULATED | SIMULATED | Sinh viên gọi lệnh giả lập chọn mục tiêu điểm mong muốn đạt được |
-| SIMULATED | ACTIVE_CALCULATED | Sinh viên thay đổi mức điểm mục tiêu khác trên thanh trượt giao diện |
-| ACTIVE_CALCULATED | FINAL_COMPLETED | Nhà trường cập nhật điểm thi cuối kỳ chính thức, khóa điểm vĩnh viễn (Read-only) |
-| FINAL_COMPLETED | `[*]` | Cập nhật kết quả vào điểm trung bình tích lũy (GPA) tổng của sinh viên |
+                     |
+                     v
+
+              Spark SQL Analytics
+```
+
+### 4.2 Sơ đồ kiến trúc Mermaid
 
 ```mermaid
-stateDiagram-v2
-    [*] --> RAW_UPLOADED : Giảng viên upload file điểm thô
-    RAW_UPLOADED --> PROCESSING : Databricks pipeline kích hoạt
-    PROCESSING --> ACTIVE_CALCULATED : Lưu Delta Lake (Silver), làm tròn 0.1
-    ACTIVE_CALCULATED --> SIMULATED : SV chọn mục tiêu điểm chữ (A+ đến D)
-    SIMULATED --> ACTIVE_CALCULATED : Thay đổi mục tiêu điểm chữ khác
-    ACTIVE_CALCULATED --> FINAL_COMPLETED : Nhập điểm cuối kỳ chính thức (Khóa điểm)
-    FINAL_COMPLETED --> [*]
+flowchart TD
+    User["User<br/>Student / Lecturer / Admin"]
+    Web["Web Dashboard<br/>React Client"]
+    Gateway["API Gateway<br/>FastAPI + JWT + Role Guard"]
+
+    StudentSvc["Student Service<br/>Profile, Scores, Notifications"]
+    PredictionSvc["Grade Prediction Service<br/>Risk Prediction, Warning"]
+    TargetSvc["Grade Target Service<br/>Inverse Calculation, Target Score"]
+
+    Databricks["Databricks Platform"]
+    Lake["Data Lake<br/>Delta Lake"]
+    ETL["ETL Pipeline<br/>PySpark Jobs"]
+    ML["ML Model<br/>MLlib / MLflow"]
+    SQL["Spark SQL Analytics<br/>Reports, Dashboards"]
+
+    User --> Web --> Gateway
+    Gateway --> StudentSvc
+    Gateway --> PredictionSvc
+    Gateway --> TargetSvc
+
+    StudentSvc --> Databricks
+    PredictionSvc --> Databricks
+    TargetSvc --> Databricks
+
+    Databricks --> Lake
+    Databricks --> ETL
+    Databricks --> ML
+
+    Lake --> SQL
+    ETL --> SQL
+    ML --> SQL
 ```
 
 ---
 
-## 4. CHI TIẾT CÁC MODULE KỸ THUẬT
+## 5. Thành Phần Hệ Thống
 
-### Module 1: Quản lý Tài khoản & API Gateway (Chan phụ trách)
+### 5.1 Web Dashboard
 
-Quản lý vòng đời tài khoản và phân quyền truy cập cho hệ thống hướng dịch vụ. Hỗ trợ xác thực tập trung cho **4 vai trò** bằng cơ chế mã hóa mật khẩu `bcrypt` và chuỗi Token an toàn **JWT** (Access Token 30 phút + Refresh Token 7 ngày). Đóng vai trò là cổng Gateway tiếp nhận request từ Client để chuyển tiếp đến các dịch vụ xử lý dữ liệu.
+Web Dashboard là giao diện chính cho người dùng. Sinh viên xem điểm, chọn mục tiêu điểm chữ và nhận kết quả giả lập. Giảng viên upload CSV và theo dõi lớp học phần. Admin xem thống kê, cảnh báo học vụ và báo cáo phân tích.
 
-### Module 2: Databricks Pipeline & Hạ tầng Delta Lake
+### 5.2 API Gateway
 
-Thiết lập hạ tầng xử lý dữ liệu lớn trên nền tảng **Databricks 3.2**. Xây dựng quy trình xử lý dữ liệu Medallion (Bronze: Lưu log file điểm thô; Silver: Làm sạch dữ liệu và map cấu hình tín chỉ học phần; Gold: Lưu trữ kết quả quy đổi đa thang điểm sẵn sàng phục vụ tra cứu).
+API Gateway dùng FastAPI để tập trung xác thực, phân quyền và định tuyến request. Gateway kiểm tra JWT, xác định vai trò người dùng và chuyển request đến service phù hợp.
 
-### Module 3: Real-time Simulation Engine (Chan phụ trách)
+Chức năng chính:
 
-Phát triển hệ thống API tính toán thời gian thực bằng **FastAPI**. Khi sinh viên kích hoạt thanh trượt chọn điểm chữ mục tiêu (A+ đến D), module này sẽ tự động tra cứu mốc giới hạn dưới từ tài liệu quy đổi `image_4.png` (Ví dụ mốc A là từ 8.5), thực hiện thuật toán đảo dựa trên cấu hình số chỉ lý thuyết/thực hành để trả về số điểm tối thiểu cần đạt với độ trễ cực thấp (<100ms).
+- Đăng nhập, refresh token, xác thực JWT.
+- Kiểm tra quyền theo vai trò Student/Lecturer/Admin.
+- Nhận file upload từ giảng viên.
+- Gọi Databricks Jobs API để kích hoạt ETL.
+- Cung cấp API cho dashboard và công cụ giả lập.
 
-### Module 4: Mô hình Máy học Dự báo Cảnh báo Học vụ
+### 5.3 Student Service
 
-Sử dụng Databricks Notebook để huấn luyện mô hình phân loại (Random Forest/XGBoost) dựa trên tập dữ liệu lịch sử điểm số sinh viên khóa cũ. Đóng gói mô hình thông qua **MLflow** và triển khai dưới dạng **Databricks Serverless Real-time Endpoint** để phục vụ việc dự báo xác suất sinh viên dính điểm F (Rớt môn) dựa trên điểm thường kỳ hiện tại.
+Student Service quản lý dữ liệu sinh viên, hồ sơ học tập, điểm cá nhân và thông báo học vụ.
 
-### Module 5: Cổng giao tiếp Client Portal
+Chức năng chính:
 
-Phát triển giao diện ứng dụng Web UI responsive bằng React.js / Next.js chia làm 4 phân hệ cổng thông tin (Student, Lecturer, Advisor, Admin). Tích hợp các bộ kéo trượt giả lập điểm trực quan, kết nối Fetch API mượt mà đến Backend Gateway và ứng dụng thư viện Chart.js để hiển thị phổ điểm lớp học trực quan.
+- Tra cứu điểm theo `student_id`.
+- Lấy danh sách môn học đã có dữ liệu điểm.
+- Hiển thị trạng thái cảnh báo học vụ.
+- Nhận notification khi giảng viên upload hoặc chỉnh sửa điểm.
 
-### Module 6: Databricks SQL Dashboard & Testing
+### 5.4 Grade Prediction Service
 
-Xây dựng tập dữ liệu lớn giả lập (Mock data) của 5.000 sinh viên để thực hiện load test hệ thống. Viết bộ mã kiểm thử tự động Pytest (Integration Test) cho các endpoint API chính để kiểm tra tính toàn vẹn dữ liệu. Thiết kế báo cáo trực quan trên **Databricks SQL Dashboard** giúp Admin theo dõi tỷ lệ cảnh báo học vụ toàn trường.
+Grade Prediction Service dự báo nguy cơ rớt môn dựa trên điểm quá trình, điểm thực hành, điểm giữa kỳ và lịch sử học tập. Service này sử dụng kết quả từ mô hình MLlib/MLflow trên Databricks.
 
----
+Chức năng chính:
 
-## PHÂN TÍCH & THIẾT KẾ SYSTEM
+- Gửi đặc trưng điểm số sang ML Model.
+- Nhận xác suất nguy cơ rớt môn.
+- Gắn nhãn `An toan`, `Nguy co`, hoặc `Nguy co cao`.
+- Cung cấp dữ liệu cảnh báo cho dashboard.
 
-### 1. Yêu cầu chức năng hệ thống – Phân loại MoSCoW
+### 5.5 Grade Target Service
 
-#### Nhóm MUST-HAVE (Bắt buộc – MVP):
+Grade Target Service thực hiện tính toán điểm mục tiêu. Khi sinh viên chọn điểm chữ mong muốn như A, B+, C, service tính ngược điểm cuối kỳ tối thiểu cần đạt.
 
-* Hệ thống xác thực đăng ký/đăng nhập phân quyền rõ ràng cho 4 vai trò bằng mã hóa bảo mật JWT.
-* **Giảng viên:** Cấu hình thuộc tính học phần (Số tín chỉ lý thuyết, thực hành) và upload file điểm thành phần.
-* **Sinh viên:** Tra cứu điểm thành phần hiện tại, kéo trượt giả lập mục tiêu để nhận ngay gợi ý điểm thi cần đạt.
-* **Hệ thống xử lý đám mây:** Đồng bộ hóa quy chế tính điểm 3 loại học phần (Lý thuyết, Thực hành, Tích hợp), làm tròn điểm số đến 0.1 và tự động ánh xạ sang điểm chữ (A+ đến F) cùng điểm hệ 4 dựa trên tài liệu quy chuẩn `image_4.png`.
-* Tự động hiển thị nhãn `Cảnh báo học vụ` nếu điểm số dự báo rơi vào thang điểm loại F (0.0 - 3.9).
+Chức năng chính:
 
-#### Nhóm SHOULD-HAVE:
+- Đọc điểm quá trình từ Gold Table.
+- Áp dụng công thức theo loại học phần: lý thuyết, thực hành, tích hợp.
+- Tính `diem_cuoi_ky_can_dat`.
+- Kiểm tra tính khả thi nếu điểm cần đạt vượt quá 10.
 
-* Tích hợp mô hình máy học trên Databricks để hiển thị tỷ lệ % xác suất rớt môn của sinh viên thay vì chỉ dùng công thức tính toán tĩnh.
-* Tự động kích hoạt Webhook bắn thông báo đến màn hình của Cố vấn học tập khi số lượng sinh viên trong lớp dính điểm cảnh báo vượt quá 20%.
+### 5.6 Databricks Platform
 
-#### Nhóm COULD-HAVE:
+Databricks Platform là lõi xử lý dữ liệu lớn của hệ thống.
 
-* Dashboard phân tích nâng cao, so sánh hiệu suất học tập và phổ điểm giữa các khóa học hoặc các khoa đào tạo với nhau.
-
----
-
-### 2. Yêu cầu Phi chức năng
-
-* **Bảo mật & Tính nhất quán đám mây:**
-  * Toàn bộ dữ liệu điểm số lưu trữ trên đám mây phải ứng dụng công nghệ Delta Lake để đảm bảo tính toàn vẹn dữ liệu thông qua cơ chế ACID Transactions.
-  * Phân tách quyền truy cập dữ liệu nghiêm ngặt: Sinh viên tuyệt đối không có quyền chỉnh sửa dữ liệu điểm gốc trên Delta Lake, chỉ được quyền gửi yêu cầu tính toán sang Simulation Engine.
-
-* **Hiệu năng:**
-  * Điểm chạm API phục vụ giả lập điểm thời gian thực (Simulation Request) phải đạt tốc độ xử lý và phản hồi dưới 150ms để đảm bảo trải nghiệm mượt mà khi sinh viên thao tác kéo trượt trên giao diện.
-
-* **Tính bảo trì:**
-  * Source code Backend FastAPI tổ chức theo kiến trúc phân tầng chuẩn dịch vụ (Router → Service → Databricks Call Layer), độc lập hoàn toàn với mã nguồn tính toán xử lý dữ liệu lớn (Spark Notebook) trên Databricks.
-
----
-
-### 3. Mô hình Thực thể Dữ liệu (Lược đồ mức Logic trên Delta Lake)
-
-Hệ thống lưu trữ cấu trúc hóa dữ liệu trên Delta Lake thông qua 5 thực thể cốt lõi:
-
-| **Thực thể dữ liệu** | **Mô tả các trường thông tin chính** |
+| Thành phần | Vai trò |
 | --- | --- |
-| **Users** | `id` (PK), `email` (Unique), `password_hash`, `full_name`, `role` (student/lecturer/advisor/admin), `is_active`, `created_at` |
-| **Subjects (Cấu hình môn)** | `ma_mon` (PK), `ten_mon`, `loai_hoc_phan` (ly_thuyet/thuc_hanh/tich_hop), `tong_so_chi`, `so_chi_lt`, `so_chi_th` |
-| **Class_Sections (Lớp)** | `ma_lop_hoc_phan` (PK), `ma_mon` (FK), `id_lecturer` (FK), `nam_hoc`, `hoc_ky` |
-| **Student_Scores (Bảng điểm)** | `id_score` (PK), `id_student` (FK), `ma_lop_hoc_phan` (FK), `diem_thong_thuong` (Array/List), `diem_giua_ky`, `diem_cuoi_ky`, `diem_tong_ket_10`, `diem_he_4`, `diem_chu`, `status_canh_bao` |
-| **Score_Mapping (Quy đổi)** | `diem_10_min`, `diem_10_max`, `diem_he_4`, `diem_chu`, `loai_danh_gia` (Dat/Khong Dat) |
+| Data Lake | Lưu dữ liệu điểm theo Delta Lake, đảm bảo ACID và truy vấn ổn định. |
+| ETL Pipeline | Dùng PySpark để đọc CSV, chuẩn hóa schema, tính điểm quá trình và ghi Bronze/Silver/Gold. |
+| ML Model | Dùng MLlib/MLflow để huấn luyện và phục vụ mô hình dự báo nguy cơ học vụ. |
+| Spark SQL Analytics | Truy vấn báo cáo, thống kê phổ điểm, tỷ lệ cảnh báo và dashboard phân tích. |
+
+---
+
+## 6. Luồng Xử Lý Nghiệp Vụ
+
+### 6.1 Luồng upload điểm
+
+| Bước | Tác nhân | Mô tả |
+| --- | --- | --- |
+| 1 | Giảng viên | Đăng nhập Web Dashboard và chọn file CSV điểm quá trình. |
+| 2 | API Gateway | Kiểm tra JWT, quyền Lecturer/Admin và validate định dạng CSV. |
+| 3 | API Gateway | Lưu file upload và gọi Databricks Job theo `job_id`. |
+| 4 | ETL Pipeline | PySpark đọc file CSV, ghi bảng Bronze. |
+| 5 | ETL Pipeline | Làm sạch dữ liệu, kiểm tra điểm 0-10, tính điểm quá trình, ghi bảng Silver. |
+| 6 | ETL Pipeline | Tính điểm mục tiêu, cảnh báo học vụ, ghi bảng Gold. |
+| 7 | Spark SQL Analytics | Cập nhật dữ liệu cho dashboard báo cáo. |
+
+### 6.2 Luồng sinh viên giả lập điểm mục tiêu
+
+| Bước | Tác nhân | Mô tả |
+| --- | --- | --- |
+| 1 | Sinh viên | Đăng nhập và chọn môn học cần xem. |
+| 2 | Web Dashboard | Gửi `student_id`, `ma_mon`, `target_grade` đến API Gateway. |
+| 3 | Grade Target Service | Lấy dữ liệu điểm từ Gold Table. |
+| 4 | Grade Target Service | Tính điểm cuối kỳ cần đạt theo công thức học phần. |
+| 5 | Web Dashboard | Hiển thị kết quả, cảnh báo nếu mục tiêu không khả thi. |
+
+### 6.3 Luồng dự báo cảnh báo học vụ
+
+| Bước | Thành phần | Mô tả |
+| --- | --- | --- |
+| 1 | ETL Pipeline | Chuẩn hóa điểm và tạo feature cho mô hình. |
+| 2 | ML Model | Dự báo xác suất sinh viên có nguy cơ rớt môn. |
+| 3 | Grade Prediction Service | Gắn nhãn cảnh báo theo ngưỡng xác suất. |
+| 4 | Spark SQL Analytics | Tổng hợp tỷ lệ cảnh báo theo lớp, môn, khoa. |
+| 5 | Web Dashboard | Hiển thị cảnh báo cho sinh viên, giảng viên và admin. |
+
+---
+
+## 7. Quy Chế Tính Điểm
+
+### 7.1 Học phần lý thuyết
+
+```text
+T = 20% * DTB_Thuong_Ky + 30% * Diem_Giua_Ky + 50% * Diem_Cuoi_Ky
+```
+
+Khi sinh viên chọn điểm mục tiêu:
+
+```text
+Diem_Cuoi_Ky_Can_Dat = (Diem_Muc_Tieu - 0.2 * DTB_Thuong_Ky - 0.3 * Diem_Giua_Ky) / 0.5
+```
+
+### 7.2 Học phần thực hành
+
+```text
+T = Trung_Binh(Diem_Thuc_Hanh_1, Diem_Thuc_Hanh_2, ..., Diem_Thuc_Hanh_N)
+```
+
+Học phần thực hành không phụ thuộc điểm cuối kỳ lý thuyết. Hệ thống dùng điểm thực hành hiện tại để đánh giá trạng thái và cảnh báo.
+
+### 7.3 Học phần tích hợp
+
+```text
+T = (Diem_Ly_Thuyet * So_Chi_LT + Diem_Thuc_Hanh * So_Chi_TH) / Tong_So_Chi
+```
+
+Điều kiện nghiệp vụ:
+
+- Có đủ dữ liệu lý thuyết và thực hành.
+- Điểm thực hành phải đạt ngưỡng tối thiểu 3.0.
+- Nếu điểm cuối kỳ cần đạt lớn hơn 10.0, hệ thống đánh dấu mục tiêu không khả thi.
+
+---
+
+## 8. Thiết Kế Cơ Sở Dữ Liệu
+
+Dữ liệu nghiệp vụ được tổ chức theo hai lớp: dữ liệu ứng dụng phục vụ xác thực và dashboard, dữ liệu phân tích lưu trên Delta Lake phục vụ ETL, ML và Spark SQL Analytics.
+
+### 8.1 Danh sách bảng nghiệp vụ
+
+| Bảng | Mục đích | Trường chính |
+| --- | --- | --- |
+| `users` | Lưu tài khoản hệ thống | `id`, `email`, `password_hash`, `full_name`, `role`, `is_active`, `created_at` |
+| `students` | Hồ sơ sinh viên | `student_id`, `user_id`, `major_id`, `class_code`, `academic_year` |
+| `lecturers` | Hồ sơ giảng viên | `lecturer_id`, `user_id`, `faculty_id`, `department` |
+| `subjects` | Cấu hình môn học | `ma_mon`, `ten_mon`, `loai_hoc_phan`, `so_chi_lt`, `so_chi_th`, `tong_so_chi` |
+| `class_sections` | Lớp học phần | `ma_lop_hoc_phan`, `ma_mon`, `lecturer_id`, `semester`, `school_year` |
+| `enrollments` | Sinh viên trong lớp học phần | `id`, `student_id`, `ma_lop_hoc_phan`, `status` |
+| `score_uploads` | Lịch sử upload file điểm | `upload_id`, `filename`, `lecturer_id`, `status`, `created_at`, `databricks_run_id` |
+| `student_scores` | Điểm thành phần và trạng thái hiện tại | `score_id`, `student_id`, `ma_lop_hoc_phan`, `diem_thong_thuong`, `diem_giua_ky`, `diem_cuoi_ky`, `status_canh_bao` |
+| `grade_targets` | Thang quy đổi điểm chữ | `grade_code`, `min_score_10`, `max_score_10`, `score_4`, `description` |
+| `predictions` | Kết quả dự báo nguy cơ | `prediction_id`, `student_id`, `ma_mon`, `risk_probability`, `risk_label`, `model_version`, `created_at` |
+| `notifications` | Thông báo in-app | `notification_id`, `user_id`, `title`, `message`, `type`, `is_read`, `created_at` |
+
+### 8.2 Bảng Delta Lake trên Databricks
+
+| Layer | Bảng | Nội dung |
+| --- | --- | --- |
+| Bronze | `bronze_diem_sinh_vien` | Dữ liệu CSV thô sau upload, giữ schema ban đầu và metadata file. |
+| Silver | `silver_diem_sinh_vien` | Dữ liệu đã validate, chuẩn hóa kiểu dữ liệu, tính điểm quá trình. |
+| Gold | `gold_du_bao_diem_cuoi_ky` | Dữ liệu phục vụ API, tính điểm mục tiêu, cảnh báo và dashboard. |
+| Dimension | `dim_diem_muc_tieu` | Danh mục điểm chữ A+, A, B+, B, C+, C, D+, D, F. |
+| Analytics | `fact_academic_warning` | Tổng hợp tỷ lệ cảnh báo theo môn, lớp, học kỳ. |
+
+### 8.3 Sơ đồ ERD
 
 ```mermaid
 erDiagram
-    Users ||--o{ Class_Sections : "quản lý giảng dạy (lecturer)"
-    Users ||--o{ Student_Scores : "tra cứu / giả lập (student)"
-    Subjects ||--o{ Class_Sections : "phân loại cấu hình học phần"
-    Class_Sections ||--o{ Student_Scores : "lưu trữ danh sách điểm lớp"
-    Student_Scores }o--|| Score_Mapping : "ánh xạ quy đổi thang điểm chữ"
+    users ||--o| students : "maps_to"
+    users ||--o| lecturers : "maps_to"
+    users ||--o{ notifications : "receives"
 
-    Users {
+    lecturers ||--o{ class_sections : "teaches"
+    subjects ||--o{ class_sections : "opens"
+    class_sections ||--o{ enrollments : "contains"
+    students ||--o{ enrollments : "joins"
+
+    class_sections ||--o{ student_scores : "has_scores"
+    students ||--o{ student_scores : "owns_scores"
+    score_uploads ||--o{ student_scores : "imports"
+
+    subjects ||--o{ predictions : "predicts_for"
+    students ||--o{ predictions : "has_predictions"
+    grade_targets ||--o{ student_scores : "maps_grade"
+
+    users {
         string id PK
-        string email "Unique"
+        string email UK
         string password_hash
         string full_name
-        string role "student/lecturer/advisor/admin"
+        string role
+        boolean is_active
         timestamp created_at
     }
-    Subjects {
+
+    students {
+        string student_id PK
+        string user_id FK
+        string major_id
+        string class_code
+        string academic_year
+    }
+
+    lecturers {
+        string lecturer_id PK
+        string user_id FK
+        string faculty_id
+        string department
+    }
+
+    subjects {
         string ma_mon PK
         string ten_mon
-        string loai_hoc_phan "ly_thuyet/thuc_hanh/tich_hop"
-        int tong_so_chi
+        string loai_hoc_phan
         int so_chi_lt
         int so_chi_th
+        int tong_so_chi
     }
-    Class_Sections {
+
+    class_sections {
         string ma_lop_hoc_phan PK
         string ma_mon FK
-        string id_lecturer FK
-        string nam_hoc
-        int hoc_ky
+        string lecturer_id FK
+        string semester
+        string school_year
     }
-    Student_Scores {
-        string id_score PK
-        string id_student FK
+
+    enrollments {
+        string id PK
+        string student_id FK
         string ma_lop_hoc_phan FK
+        string status
+    }
+
+    score_uploads {
+        string upload_id PK
+        string filename
+        string lecturer_id FK
+        string status
+        string databricks_run_id
+        timestamp created_at
+    }
+
+    student_scores {
+        string score_id PK
+        string student_id FK
+        string ma_lop_hoc_phan FK
+        string upload_id FK
+        float diem_thong_thuong
         float diem_giua_ky
         float diem_cuoi_ky
-        float diem_tong_ket_10 "Làm tròn 0.1"
-        float diem_he_4
-        string diem_chu "A+ đến F"
-        string status_canh_bao "An toan / Nguy co"
-    }
-    Score_Mapping {
-        float diem_10_min PK
-        float diem_10_max
-        float diem_he_4
+        float diem_tong_ket_10
         string diem_chu
-        string loai_danh_gia
+        string status_canh_bao
+    }
+
+    grade_targets {
+        string grade_code PK
+        float min_score_10
+        float max_score_10
+        float score_4
+        string description
+    }
+
+    predictions {
+        string prediction_id PK
+        string student_id FK
+        string ma_mon FK
+        float risk_probability
+        string risk_label
+        string model_version
+        timestamp created_at
+    }
+
+    notifications {
+        string notification_id PK
+        string user_id FK
+        string title
+        string message
+        string type
+        boolean is_read
+        timestamp created_at
     }
 ```
 
 ---
 
-### 4. Sơ đồ Kiến trúc Hệ thống hướng Dịch vụ (SOA) trên Đám mây
+## 9. Mô Hình Dữ Liệu Medallion Trên Databricks
 
-```mermaid
-graph TD
-    classDef client fill:#dbeafe,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
-    classDef frontend fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#3b0764;
-    classDef backend fill:#dcfce7,stroke:#22c55e,stroke-width:2px,color:#14532d;
-    classDef databricks fill:#ffedd5,stroke:#f97316,stroke-width:2px,color:#7c2d12;
-    classDef external fill:#f3f4f6,stroke:#9ca3af,stroke-width:2px,color:#374151,stroke-dasharray: 5 5;
+### 9.1 Bronze Layer
 
-    subgraph Client_Tier ["Tầng Client Interface"]
-        A["👤 Users\n(Sinh viên/Giảng viên)"]:::client
-    end
+Bronze lưu dữ liệu thô từ file upload, phục vụ audit và truy vết.
 
-    subgraph Frontend_Tier ["Tầng Cổng dịch vụ (Frontend UI Portal)"]
-        A --> |"HTTPS"| FE["SmartGPA Web Portals\n(Student / Lecturer / Advisor / Admin Dashboards)"]:::frontend
-        FE --> |"fetch() + JWT Token"| B
-    end
+Trường chính:
 
-    subgraph Application_Tier ["Tầng Điều phối API (FastAPI Backend Gateway)"]
-        B("Auth Gateway\n(JWT Verification & Role Check)"):::backend
-        B --> C["Simulation Core\n(Xử lý tham số mục tiêu điểm chữ)"]:::backend
-        B --> D["Data Ingestion Router\n(Tiếp nhận file điểm từ Giảng viên)"]:::backend
-    end
+- `student_id`
+- `student_name`
+- `ma_mon`
+- `ten_mon`
+- `ma_lop_hoc_phan`
+- `loai_hoc_phan`
+- `thuong_xuyen_1`, `thuong_xuyen_2`
+- `giua_ky`
+- `thuc_hanh_1`, `thuc_hanh_2`, `thuc_hanh_3`
+- `source_file`
+- `ingested_at`
 
-    subgraph Databricks_Tier ["Tầng Nền tảng Đám mây (Databricks 3.2 Lakehouse)"]
-        C --> |"REST Call"| E["Databricks Serverless Endpoint\n(Hàm tính toán điểm đảo thời gian thực)"]:::databricks
-        D --> |"Stream nạp dữ liệu"| F["Bronze Table\n(Lưu log file điểm thô)"]:::databricks
-        F --> |"Spark Job ETL\nMap cấu hình số chỉ"| G["Silver Table\n(Tính toán quy chế & Làm tròn 0.1)"]:::databricks
-        G --> |"Ánh xạ bảng quy đổi"| H["Gold Table\n(Bảng điểm đa thang điểm chuẩn chuẩn)"]:::databricks
-        G -.-> |"Huấn luyện / Dự báo"| I["MLflow Serving\n(Mô hình dự đoán xác suất rớt môn)"]:::databricks
-        I -.-> |Trả kết quả nguy cơ| C
-        H --> |Cung cấp dữ liệu báo cáo| K["Databricks SQL Dashboard\n(BI Reports cho Nhà trường)"]:::databricks
-    end
+### 9.2 Silver Layer
 
-    subgraph External_Tier ["Dịch vụ Cảnh báo Đám mây"]
-        K -.-> |"Trigger Alert >20% F"| L["Notification Service\n(Webhook bắn cảnh báo học vụ)"]:::external
-    end
-```
+Silver chuẩn hóa dữ liệu và tính điểm quá trình.
+
+Trường chính:
+
+- Các trường định danh từ Bronze.
+- `tong_so_chi`
+- `lt_qt_10`
+- `th_qt_10`
+- `qt_10`
+- `data_quality_status`
+
+### 9.3 Gold Layer
+
+Gold là lớp phục vụ API và dashboard.
+
+Trường chính:
+
+- `student_id`, `ma_mon`, `ma_lop_hoc_phan`
+- `qt_10`
+- `diem_chu_muc_tieu`
+- `diem_muc_tieu_10`
+- `diem_cuoi_ky_can_dat`
+- `kha_thi`
+- `risk_probability`
+- `status_canh_bao`
 
 ---
 
-## KẾ HOẠCH PHÁT TRIỂN DỰ ÁN (MVP PHASE)
+## 10. Yêu Cầu Chức Năng
 
-**1. Kế hoạch kiểm thử dịch vụ tích hợp**
+### 10.1 Must Have
 
-| Mã TC | Module dịch vụ | Hành động kiểm thử | Kết quả mong đợi tối ưu |
+- Người dùng đăng nhập bằng email/password, nhận JWT và truy cập theo vai trò.
+- Giảng viên upload file CSV điểm quá trình.
+- Backend validate header, dữ liệu điểm và loại học phần.
+- Backend gọi Databricks Job để chạy ETL.
+- Databricks ghi Bronze/Silver/Gold Delta tables.
+- Sinh viên tra cứu điểm cá nhân.
+- Sinh viên chọn điểm chữ mục tiêu và nhận điểm cuối kỳ cần đạt.
+- Admin xem dashboard Spark SQL Analytics.
+
+### 10.2 Should Have
+
+- ML Model dự báo xác suất nguy cơ rớt môn.
+- Notification khi điểm mới được upload hoặc sinh viên rơi vào nhóm nguy cơ.
+- Dashboard lọc theo lớp, môn, học kỳ, giảng viên.
+
+### 10.3 Could Have
+
+- So sánh phổ điểm giữa các lớp.
+- Cảnh báo tự động khi tỷ lệ nguy cơ của lớp vượt ngưỡng.
+- Gợi ý chiến lược học tập dựa trên điểm mục tiêu.
+
+---
+
+## 11. Yêu Cầu Phi Chức Năng
+
+| Nhóm yêu cầu | Mô tả |
+| --- | --- |
+| Bảo mật | JWT, phân quyền theo role, không cho sinh viên chỉnh sửa dữ liệu điểm. |
+| Toàn vẹn dữ liệu | Delta Lake bảo đảm ACID transaction, lưu được lịch sử upload và trạng thái xử lý. |
+| Hiệu năng | API tra cứu và giả lập điểm phản hồi nhanh cho dashboard; ETL xử lý batch CSV trên Databricks. |
+| Khả mở rộng | Tách service rõ ràng, có thể mở rộng riêng Prediction Service hoặc Target Service. |
+| Khả quan sát | Lưu `databricks_run_id`, trạng thái upload và log xử lý để debug pipeline. |
+| Bảo trì | Backend tổ chức theo Router -> Service -> Databricks Layer; notebook PySpark tách khỏi API. |
+
+---
+
+## 12. Kế Hoạch Kiểm Thử
+
+| Mã TC | Module | Kịch bản | Kết quả mong đợi |
 | --- | --- | --- | --- |
-| TC-01 | Auth Gateway | Gọi endpoint yêu cầu giả lập điểm nhưng truyền token hết hạn hoặc sai quyền | Hệ thống trả về mã lỗi `401 Unauthorized` hoặc `403 Forbidden`. |
-| TC-02 | Ingestion Service | Giảng viên upload file danh sách điểm định dạng không hợp lệ | Hệ thống chặn từ tầng Gateway, trả về `422 Unprocessable Entity`. |
-| TC-03 | Data Rounding | Điểm tổng kết thực tế tính ra là 8.44 hoặc 8.46 | Databricks xử lý lưu vào Silver Table làm tròn chính xác thành 8.4 và 8.5. |
-| TC-04 | Grade Mapping | Điểm học phần tính ra đạt mốc 8.0 | Hệ thống tự động map chính xác sang điểm hệ chữ **B+** và hệ 4 là **3.5** theo đúng `image_4.png`. |
-| TC-05 | Inverse Calc (LT) | Môn Lý thuyết: Điểm TK=8.0, GK=9.0; Chọn mục tiêu đạt loại **A** (Mốc 8.5) | Simulation Engine tính đảo, trả về kết quả điểm cuối kỳ cần đạt tối thiểu là **8.5**. |
-| TC-06 | Inverse Calc (TH) | Môn Tích hợp (2 chỉ LT, 1 chỉ TH): Điểm thực hành=8.0; Chọn mục tiêu đạt loại **A** (Mốc 8.5) | Simulation Engine tính toán đảo, thông báo điểm tổng kết nhánh lý thuyết phải đạt từ **8.8** trở lên. |
-| TC-07 | Feasibility Alert | Sinh viên điểm hiện tại quá thấp, chọn mục tiêu đạt loại **A+** | Hệ thống nhận diện điểm cuối kỳ cần đạt > 10.0, hiện thông báo `Mục tiêu Bất khả thi`. |
-| TC-08 | ML Prediction | Sinh viên có điểm giữa kỳ và thường kỳ dưới mốc 3.5 | MLflow Endpoint ghi nhận dữ liệu, trả về xác suất nguy cơ rớt môn cao (>70%). |
+| TC-01 | API Gateway | Gọi API không có JWT | Trả `401 Unauthorized`. |
+| TC-02 | API Gateway | Sinh viên gọi API upload điểm | Trả `403 Forbidden`. |
+| TC-03 | Upload | Upload file sai định dạng | Trả `422 Unprocessable Entity`. |
+| TC-04 | Upload | CSV thiếu cột bắt buộc | Trả lỗi chi tiết cột thiếu. |
+| TC-05 | ETL Pipeline | Upload CSV hợp lệ | Databricks Job chạy `SUCCESS`, có dữ liệu Bronze/Silver/Gold. |
+| TC-06 | Grade Target | Môn lý thuyết, mục tiêu A | Trả điểm cuối kỳ cần đạt theo công thức. |
+| TC-07 | Grade Target | Điểm cần đạt > 10 | Trả `kha_thi = false`. |
+| TC-08 | Prediction | Sinh viên điểm quá trình thấp | Gắn nhãn nguy cơ học vụ. |
+| TC-09 | Analytics | Admin mở dashboard | Hiển thị tỷ lệ cảnh báo theo môn/lớp/học kỳ. |
 
 ---
 
-## CÂU HỎI PHẢN BIỆN DÀNH CHO HỘI ĐỒNG
+## 13. Kết Quả Demo Dự Kiến
 
-1. **Về tối ưu chi phí hạ tầng Cloud:** Vì tính năng kéo trượt "Giả lập mục tiêu" của sinh viên đòi hỏi hệ thống phải tính toán ngược và trả kết quả thời gian thực, việc nhóm lựa chọn giải pháp đóng gói logic toán học lên *Databricks Serverless Real-time Endpoints* có giúp nhà trường tối ưu hóa chi phí vận hành chi tiết hơn so với việc duy trì một cụm Cluster Spark chạy liên tục 24/7 hay không?
-2. **Về thiết kế cấu trúc lưu trữ lớn trên Delta Lake:** Để phục vụ cho phân hệ Cố vấn học tập truy vấn và lọc nhanh danh sách sinh viên dính cờ cảnh báo học vụ của toàn trường cùng lúc, hệ thống nên thực hiện phân vùng dữ liệu (Partitioning) theo `ma_lop_hoc_phan` hay ứng dụng kỹ thuật chỉ mục *Z-Order Clustering* trên trường thông tin `diem_chu` ở tầng Gold Table để đạt hiệu năng truy vấn cao nhất?
+- Web Dashboard có ba luồng chính: Student, Lecturer, Admin.
+- Giảng viên upload CSV và nhận `databricks_run_id`.
+- Databricks Workflows hiển thị job ETL chạy thành công.
+- Delta tables được tạo trong schema `workspace.smartgpa_db`.
+- Sinh viên tra cứu điểm và xem điểm cuối kỳ cần đạt.
+- Admin xem Spark SQL Analytics về cảnh báo học vụ.
+
+---
+
+## 14. Câu Hỏi Phản Biện Dành Cho Hội Đồng
+
+1. Với dữ liệu điểm học tập tăng theo từng học kỳ, nên partition Delta Lake theo `school_year`, `semester`, `ma_lop_hoc_phan` hay dùng Z-Ordering theo `student_id` và `ma_mon` để tối ưu tra cứu cá nhân?
+2. Grade Target Service nên tính trực tiếp bằng FastAPI để phản hồi nhanh hay đẩy toàn bộ logic tính điểm mục tiêu vào Databricks Serverless để thống nhất với pipeline dữ liệu?
+3. Với mô hình MLlib dự báo nguy cơ rớt môn, nhóm nên chọn ngưỡng cảnh báo cố định theo xác suất hay điều chỉnh ngưỡng theo từng môn học/lớp học phần?
