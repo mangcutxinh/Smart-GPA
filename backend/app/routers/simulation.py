@@ -1,4 +1,629 @@
-"""\nSmartGPA â€“ Simulation Engine Router\nEndpoints: /simulation/simulate, /simulation/score-map\n"""\nfrom typing import List\n\nfrom fastapi import APIRouter, Depends, HTTPException, Query\n\nfrom app.core.dependencies import get_current_user, require_role\nfrom app.models.schemas import (\n    ScoreMappingItem,\n    SimulationRequest,\n    SimulationResult,\n    SimulationCalcRequest,\n    DiemChuTarget,\n    UserOut,\n    UserRole,\n    PredictRiskRequest,\n    EmailWarningRequest,\n)\nfrom app.services.simulation_service import get_score_mapping, simulate\nfrom app.db.databricks_db import query_gold_diem_sinh_vien, query_gold_predictions_by_student\n\nrouter = APIRouter(prefix="/simulation", tags=["Simulation Engine"])\n\n\ndef _build_simulation_from_score_data(score_data: dict, target: DiemChuTarget) -> SimulationResult:\n    loai_hp = score_data.get("loai_hoc_phan", "ly_thuyet")\n\n    if loai_hp == "tich_hop":\n        t_th = score_data.get("diem_thuc_hanh_tich_hop")\n        tk_lt = score_data.get("diem_thuong_ky_lt_list")\n        gk_lt = score_data.get("diem_giua_ky_lt")\n        chi_lt = score_data.get("so_chi_lt") or 2\n\n        if t_th is None or tk_lt is None or len(tk_lt) != chi_lt or gk_lt is None:\n            raise HTTPException(\n                status_code=400,\n                detail="Báº£ng Ä‘iá»ƒm tÃ­ch há»£p chÆ°a Ä‘áº§y Ä‘á»§ Ä‘áº§u Ä‘iá»ƒm thÃ nh pháº§n Ä‘á»ƒ tÃ­nh dá»± bÃ¡o.",\n            )\n\n    sim_payload = {\n        "loai_hoc_phan": loai_hp,\n        "muc_tieu": target,\n        "so_tin_chi": score_data.get("tong_so_chi"),\n        "diem_thuong_ky_list": score_data.get("diem_thong_thuong"),\n        "diem_giua_ky": score_data.get("diem_giua_ky"),\n        "diem_thuc_hanh_hien_tai": score_data.get("diem_thuc_hanh_hien_tai"),\n        "so_chi_lt": score_data.get("so_chi_lt"),\n        "so_chi_th": score_data.get("so_chi_th"),\n        "diem_thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),\n        "diem_thuong_ky_lt_list": score_data.get("diem_thuong_ky_lt_list"),\n        "diem_giua_ky_lt": score_data.get("diem_giua_ky_lt"),\n    }\n\n    sim_req = SimulationRequest(**sim_payload)\n    res = simulate(sim_req)\n    res.chi_tiet["full_scores"] = {\n        "diem_thong_thuong": score_data.get("diem_thong_thuong") or [],\n        "diem_giua_ky": score_data.get("diem_giua_ky"),\n        "diem_cuoi_ky": score_data.get("diem_cuoi_ky"),\n        "loai_hoc_phan": loai_hp,\n        "so_chi_lt": score_data.get("so_chi_lt"),\n        "so_chi_th": score_data.get("so_chi_th"),\n        "tong_so_chi": score_data.get("tong_so_chi"),\n        "diem_thuc_hanh_hien_tai": score_data.get("diem_thuc_hanh_hien_tai") or [],\n        "diem_thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),\n        "diem_thuong_ky_lt_list": score_data.get("diem_thuong_ky_lt_list") or [],\n        "diem_giua_ky_lt": score_data.get("diem_giua_ky_lt"),\n        "status_canh_bao": score_data.get("status_canh_bao"),\n    }\n    return res\n\n\n@router.post(\n    "/simulate",\n    response_model=SimulationResult,\n    summary="TÃ­nh Ä‘iá»ƒm ngÆ°á»£c (Inverse Calculation) â€“ Chá»‰ Student",\n    description="""\n**[YÃªu cáº§u vai trÃ²: Student]**\n\nTÃ­nh Ä‘iá»ƒm cáº§n Ä‘áº¡t Ä‘á»ƒ Ä‘áº¡t má»¥c tiÃªu Ä‘iá»ƒm chá»¯ mong muá»‘n. Há»— trá»£ 3 loáº¡i há»c pháº§n:\n\n---\n\n### 1. LÃ½ thuyáº¿t (`ly_thuyet`)\n```\nT = 0.2Ã—TK + 0.3Ã—GK + 0.5Ã—CK\n```\nCáº§n truyá»n: `diem_thuong_ky`, `diem_giua_ky`\nâ†’ TÃ­nh ra: **Äiá»ƒm cuá»‘i ká»³ tá»‘i thiá»ƒu cáº§n Ä‘áº¡t**\n\n---\n\n### 2. Thá»±c hÃ nh (`thuc_hanh`)\n```\nT = trung bÃ¬nh cá»™ng táº¥t cáº£ buá»•i TH\n```\nCáº§n truyá»n: `diem_thuc_hanh_hien_tai` (list), `tong_so_buoi`\nâ†’ TÃ­nh ra: **Äiá»ƒm trung bÃ¬nh cáº§n Ä‘áº¡t cho cÃ¡c buá»•i cÃ²n láº¡i**\n\n---\n\n### 3. TÃ­ch há»£p (`tich_hop`)\n```\nT = (T_LT Ã— chi_lt + T_TH Ã— chi_th) / tá»•ng_chi\n```\nCáº§n truyá»n: `so_chi_lt`, `so_chi_th`, `diem_thuc_hanh_tich_hop`\n\nTÃ¹y chá»n: thÃªm `diem_thuong_ky_lt` + `diem_giua_ky_lt` Ä‘á»ƒ tÃ­nh sÃ¢u hÆ¡n\nâ†’ TÃ­nh ra: **Äiá»ƒm tá»•ng káº¿t nhÃ¡nh LT cáº§n Ä‘áº¡t** (vÃ  CK_lt náº¿u cÃ³ thÃªm input)\n\n---\n\n### Káº¿t quáº£ báº¥t kháº£ thi\nNáº¿u Ä‘iá»ƒm cáº§n Ä‘áº¡t **> 10.0**, há»‡ thá»‘ng tráº£ vá» `is_kha_thi = false` vÃ  thÃ´ng bÃ¡o **"Má»¥c tiÃªu Báº¥t kháº£ thi"**.\n    """,\n)\ndef simulate_score(\n    req: SimulationRequest,\n    _: UserOut = Depends(require_role(UserRole.STUDENT)),\n) -> SimulationResult:\n    return simulate(req)\n\n\n@router.get(\n    "/score-map",\n    response_model=List[ScoreMappingItem],\n    summary="Báº£ng quy Ä‘á»•i Ä‘iá»ƒm â€“ Táº¥t cáº£ ngÆ°á»i dÃ¹ng Ä‘Ã£ Ä‘Äƒng nháº­p",\n    description="""\nTráº£ vá» toÃ n bá»™ báº£ng quy Ä‘á»•i Ä‘iá»ƒm tá»« thang 10 â†’ Ä‘iá»ƒm chá»¯ â†’ thang 4.\n\n| Äiá»ƒm 10 | Äiá»ƒm chá»¯ | Äiá»ƒm há»‡ 4 | ÄÃ¡nh giÃ¡ |\n|---|---|---|---|\n| 9.0 â€“ 10.0 | A+ | 4.0 | Äáº¡t |\n| 8.5 â€“ 8.9 | A | 4.0 | Äáº¡t |\n| ... | ... | ... | ... |\n| 0.0 â€“ 3.9 | F | 0.0 | KhÃ´ng Äáº¡t |\n    """,\n)\ndef get_score_map(\n    _: UserOut = Depends(get_current_user),\n) -> List[ScoreMappingItem]:\n    return [ScoreMappingItem(**item) for item in get_score_mapping()]\n\n\n@router.post(\n    "/calc",\n    response_model=SimulationResult,\n    summary="Giáº£ láº­p Ä‘iá»ƒm thi tÃ­ch há»£p Databricks Delta Lake",\n    description="""\n**[YÃªu cáº§u vai trÃ²: Báº¥t ká»³ vai trÃ² nÃ o Ä‘Ã£ Ä‘Äƒng nháº­p]**\n\nTruy váº¥n báº£ng Ä‘iá»ƒm cá»§a sinh viÃªn trá»±c tiáº¿p tá»« **Gold Delta Table** cá»§a Databricks dá»±a trÃªn `student_id` vÃ  `ma_mon`.\nSau Ä‘Ã³ tá»± Ä‘á»™ng cháº¡y Simulation Engine Ä‘á»ƒ tÃ­nh toÃ¡n Ä‘iá»ƒm thi cuá»‘i ká»³ tá»‘i thiá»ƒu cáº§n Ä‘áº¡t cho `diem_chu_muc_tieu`.\n    """,\n)\ndef calculate_simulation(\n    req: SimulationCalcRequest,\n    _: UserOut = Depends(get_current_user),\n) -> SimulationResult:\n    # 1. Truy váº¥n dá»¯ liá»‡u Ä‘iá»ƒm tá»« Databricks (hoáº·c fallback vá» simulated database)\n    score_data = query_gold_diem_sinh_vien(req.student_id, req.ma_mon)\n    if not score_data:\n        raise HTTPException(\n            status_code=404,\n            detail=f"Không tìm thấy bảng điểm của sinh viên '{req.student_id}' cho môn học '{req.ma_mon}' trên hệ thống."\n        )\n        \n    # 2. Ãnh xáº¡ dá»¯ liá»‡u Gold Table sang SimulationRequest\n    loai_hp = score_data.get("loai_hoc_phan", "ly_thuyet")\n\n    if loai_hp == "tich_hop":\n        t_th = score_data.get("diem_thuc_hanh_tich_hop")\n        tk_lt = score_data.get("diem_thuong_ky_lt_list")\n        gk_lt = score_data.get("diem_giua_ky_lt")\n        chi_lt = score_data.get("so_chi_lt") or 2\n        \n        if t_th is None or tk_lt is None or len(tk_lt) != chi_lt or gk_lt is None:\n            raise HTTPException(\n                status_code=400,\n                detail="Báº£ng Ä‘iá»ƒm tÃ­ch há»£p chÆ°a Ä‘áº§y Ä‘á»§ Ä‘áº§u Ä‘iá»ƒm thÃ nh pháº§n. YÃªu cáº§u nháº­p Ä‘áº§y Ä‘á»§ Ä‘iá»ƒm Thá»±c hÃ nh, Ä‘iá»ƒm ThÆ°á»ng ká»³ lÃ½ thuyáº¿t vÃ  Ä‘iá»ƒm Giá»¯a ká»³ lÃ½ thuyáº¿t má»›i Ä‘á»§ Ä‘iá»u kiá»‡n báº¯t Ä‘áº§u tÃ­nh Ä‘iá»ƒm thi cuá»‘i ká»³."\n            )\n\n    sim_payload = {\n        "loai_hoc_phan": loai_hp,\n        "muc_tieu": req.diem_chu_muc_tieu,\n        "so_tin_chi": score_data.get("tong_so_chi"),\n        "diem_thuong_ky_list": score_data.get("diem_thong_thuong"),\n        "diem_giua_ky": score_data.get("diem_giua_ky"),\n        "diem_thuc_hanh_hien_tai": score_data.get("diem_thuc_hanh_hien_tai"),\n        "so_chi_lt": score_data.get("so_chi_lt"),\n        "so_chi_th": score_data.get("so_chi_th"),\n        "diem_thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),\n        "diem_thuong_ky_lt_list": score_data.get("diem_thuong_ky_lt_list"),\n        "diem_giua_ky_lt": score_data.get("diem_giua_ky_lt"),\n    }\n    \n    # Chuyá»ƒn Ä‘á»•i thÃ nh SimulationRequest thÃ´ng qua validation cá»§a Pydantic\n    try:\n        sim_req = SimulationRequest(**sim_payload)\n    except Exception as e:\n        raise HTTPException(\n            status_code=422,\n            detail=f"Lá»—i cáº¥u trÃºc dá»¯ liá»‡u Ä‘iá»ƒm tá»« Delta Lake: {str(e)}"\n        )\n        \n    # 3. Thá»±c thi Simulation Service\n    res = simulate(sim_req)\n    \n    # Bá»• sung thÃ´ng tin báº£ng Ä‘iá»ƒm Ä‘áº§y Ä‘á»§ (full_scores) vÃ o chi_tiet Ä‘á»ƒ frontend hiá»ƒn thá»‹\n    res.chi_tiet["full_scores"] = {\n        "diem_thong_thuong": score_data.get("diem_thong_thuong") or [],\n        "diem_giua_ky": score_data.get("diem_giua_ky"),\n        "diem_cuoi_ky": score_data.get("diem_cuoi_ky"),\n        "loai_hoc_phan": loai_hp,\n        "so_chi_lt": score_data.get("so_chi_lt"),\n        "so_chi_th": score_data.get("so_chi_th"),\n        "tong_so_chi": score_data.get("tong_so_chi"),\n        "diem_thuc_hanh_hien_tai": score_data.get("diem_thuc_hanh_hien_tai") or [],\n        "diem_thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),\n        "diem_thuong_ky_lt_list": score_data.get("diem_thuong_ky_lt_list") or [],\n        "diem_giua_ky_lt": score_data.get("diem_giua_ky_lt"),\n        "status_canh_bao": score_data.get("status_canh_bao")\n    }\n    return res\n\n\n@router.get(\n    "/student-lookup/{student_id}",\n    response_model=List[dict],\n    summary="Sinh viÃªn tra cá»©u táº¥t cáº£ mÃ´n theo MSSV",\n    description="Sinh viÃªn chá»‰ nháº­p MSSV, há»‡ thá»‘ng tráº£ vá» cÃ¡c mÃ´n Ä‘Ã£ cÃ³ Ä‘iá»ƒm vÃ  dá»± bÃ¡o Ä‘iá»ƒm cuá»‘i ká»³ cáº§n Ä‘áº¡t theo má»¥c tiÃªu.",\n)\ndef lookup_student_scores(\n    student_id: str,\n    diem_chu_muc_tieu: DiemChuTarget = Query(DiemChuTarget.A),\n    current_user: UserOut = Depends(get_current_user),\n) -> List[dict]:\n    from app.db.databricks_db import MOCK_GOLD_DB\n    from app.db.real_db import COURSES_DB\n\n    subject_names = {\n        "INT1001": "Lap trinh Python",\n        "INT1002": "Co so du lieu",\n        "INT1306": "Cau truc du lieu va giai thuat",\n        "INT1340": "Thuc hanh He dieu hanh",\n        "INT1410": "Mang may tinh",\n        "mon_1": "Cau truc du lieu va giai thuat",\n        "mon_2": "Mang may tinh",\n        "mon_3": "Thuc hanh He dieu hanh",\n        "mon_4": "Thuc hanh Lap trinh huong doi tuong",\n        "GDQP102": "Giao duc quoc phong",\n    }\n\n    normalized_student_id = student_id.strip().upper()\n    if (\n        current_user.role == UserRole.STUDENT\n        and (current_user.student_id or "").strip().upper() != normalized_student_id\n    ):\n        raise HTTPException(status_code=403, detail="Sinh vien chi duoc tra cuu bang diem cua chinh minh.")\n    \n    course_map = {c["id"]: c for c in COURSES_DB}\n    results = []\n\n    # 1. Ưu tiên truy vấn trực tiếp từ Databricks Gold Table\n    databricks_rows = query_gold_predictions_by_student(normalized_student_id, diem_chu_muc_tieu.value)\n    if databricks_rows:\n        for row in databricks_rows:\n            ma_mon = row.get("ma_mon")\n            c_info = course_map.get(ma_mon, {})\n            is_feasible = bool(row.get("kha_thi"))\n            target_grade = row.get("diem_chu_muc_tieu")\n            score_needed = row.get("diem_cuoi_ky_can_dat")\n            \n            if not is_feasible:\n                msg = f"Rất tiếc! Mục tiêu đạt điểm chữ {target_grade} cho môn học này hiện tại là bất khả thi vì điểm cuối kỳ cần đạt vượt quá 10.0."\n            elif score_needed is not None and score_needed <= 3.0:\n                msg = f"Tuyệt vời! Điểm thành phần hiện tại rất tốt. Bạn chỉ cần đạt tối thiểu 3.0 điểm thi cuối kỳ (ngưỡng điểm liệt quy chế) để đạt mục tiêu điểm chữ {target_grade}."\n            else:\n                msg = f"Hãy nỗ lực ôn tập nhé! Bạn cần đạt tối thiểu {score_needed} điểm thi cuối kỳ để hoàn thành mục tiêu đạt điểm chữ {target_grade}."\n\n            results.append({\n                "student_id": row.get("student_id"),\n                "student_name": row.get("student_name"),\n                "ma_mon": ma_mon,\n                "ten_mon": row.get("ten_mon") or c_info.get("name") or subject_names.get(ma_mon, f"Mon hoc {ma_mon}"),\n                "loai_hoc_phan": row.get("loai_hoc_phan"),\n                "status_canh_bao": row.get("status_canh_bao", "An toan"),\n                "source": "databricks",\n                "prediction": {\n                    "loai_hoc_phan": row.get("loai_hoc_phan"),\n                    "muc_tieu": target_grade,\n                    "diem_muc_tieu_nguong": row.get("diem_muc_tieu_10"),\n                    "diem_can_dat": score_needed,\n                    "is_kha_thi": is_feasible,\n                    "message": msg,\n                    "chi_tiet": {\n                        "qt_10": row.get("qt_10"),\n                        "lt_qt_10": row.get("lt_qt_10"),\n                        "th_qt_10": row.get("th_qt_10"),\n                        "diem_muc_tieu_10": row.get("diem_muc_tieu_10"),\n                        "status_canh_bao": row.get("status_canh_bao"),\n                    },\n                },\n                "diem_tong_ket": row.get("diem_tong_ket") or row.get("diem_tong_ket_10") or row.get("qt_10"),\n                "diem_chu": row.get("diem_chu") or row.get("diem_chu_hien_tai"),\n                "diem_he_4": row.get("diem_he_4") or row.get("diem_4"),\n                "tong_so_chi": row.get("tong_so_chi") or row.get("so_tin_chi") or c_info.get("credits", 3),\n                "hoc_ky": row.get("hoc_ky") or c_info.get("hoc_ky", 1),\n                "thuong_xuyen": [x for x in (row.get("thuong_xuyen_1"), row.get("thuong_xuyen_2")) if x is not None],\n                "giua_ky": row.get("giua_ky"),\n                "thuc_hanh": [x for x in (row.get("thuc_hanh_1"), row.get("thuc_hanh_2"), row.get("thuc_hanh_3")) if x is not None],\n                "thuc_hanh_tich_hop": row.get("thuc_hanh_tich_hop") or row.get("th_qt_10"),\n                "diem_cuoi_ky": row.get("diem_cuoi_ky"),\n            })\n        return results\n\n    # 2. Fallback về Local Mock Database + Simulation Engine trên web server\n    for (record_student_id, ma_mon), score_data in MOCK_GOLD_DB.items():\n        if record_student_id.strip().upper() != normalized_student_id:\n            continue\n\n        c_info = course_map.get(ma_mon, {})\n        \n        # ─── Tính diem_tong_ket từ điểm thành phần (nếu có đầy đủ) ───\n        computed_tong = score_data.get("diem_tong_ket")\n        computed_chu = score_data.get("diem_chu")\n        computed_he4 = score_data.get("diem_he_4")\n        \n        if computed_tong is None:\n            loai_hp = score_data.get("loai_hoc_phan", "ly_thuyet")\n            diem_ck = score_data.get("diem_cuoi_ky")\n            \n            if loai_hp == "ly_thuyet" and diem_ck is not None:\n                tk_list = score_data.get("diem_thong_thuong") or []\n                gk = score_data.get("diem_giua_ky")\n                if tk_list and gk is not None:\n                    tk_avg = sum(tk_list) / len(tk_list)\n                    computed_tong = round(0.2 * tk_avg + 0.3 * gk + 0.5 * diem_ck, 2)\n            elif loai_hp == "thuc_hanh":\n                th_list = score_data.get("diem_thuc_hanh_hien_tai") or []\n                if th_list:\n                    computed_tong = round(sum(th_list) / len(th_list), 2)\n            elif loai_hp == "tich_hop" and diem_ck is not None:\n                th_score = score_data.get("diem_thuc_hanh_tich_hop")\n                tk_lt_list = score_data.get("diem_thuong_ky_lt_list") or []\n                gk_lt = score_data.get("diem_giua_ky_lt")\n                chi_lt = score_data.get("so_chi_lt") or 2\n                chi_th = score_data.get("so_chi_th") or 1\n                total_chi = (score_data.get("tong_so_chi") or (chi_lt + chi_th)) or 3\n                \n                if th_score is not None and tk_lt_list and gk_lt is not None:\n                    tk_lt_avg = sum(tk_lt_list) / len(tk_lt_list)\n                    t_lt = 0.2 * tk_lt_avg + 0.3 * gk_lt + 0.5 * diem_ck\n                    computed_tong = round((t_lt * chi_lt + th_score * chi_th) / total_chi, 2)\n            \n            # Quy đổi sang điểm chữ và hệ 4\n            if computed_tong is not None:\n                from app.services.simulation_service import SCORE_MAPPING\n                for entry in SCORE_MAPPING:\n                    if entry["diem_10_min"] <= computed_tong <= entry["diem_10_max"] + 0.05:\n                        computed_chu = entry["diem_chu"]\n                        computed_he4 = entry["diem_he_4"]\n                        break\n                if computed_chu is None:\n                    computed_chu = "F"\n                    computed_he4 = 0.0\n        \n        try:\n            prediction = _build_simulation_from_score_data(score_data, diem_chu_muc_tieu)\n            \n            # Đổi câu thông báo sang tiếng Việt có dấu phong phú\n            is_feasible_local = prediction.is_kha_thi\n            target_grade_local = prediction.muc_tieu\n            score_needed_local = prediction.diem_can_dat\n            if not is_feasible_local:\n                prediction.message = f"Rất tiếc! Mục tiêu đạt điểm chữ {target_grade_local} cho môn học này hiện tại là bất khả thi vì điểm cuối kỳ cần đạt vượt quá 10.0."\n            elif score_needed_local is not None and score_needed_local <= 3.0:\n                prediction.message = f"Tuyệt vời! Điểm thành phần hiện tại rất tốt. Bạn chỉ cần đạt tối thiểu 3.0 điểm thi cuối kỳ (ngưỡng điểm liệt quy chế) để đạt mục tiêu điểm chữ {target_grade_local}."\n            else:\n                prediction.message = f"Hãy nỗ lực ôn tập nhé! Bạn cần đạt tối thiểu {score_needed_local} điểm thi cuối kỳ để hoàn thành mục tiêu đạt điểm chữ {target_grade_local}."\n\n            results.append({\n                "student_id": record_student_id,\n                "ma_mon": ma_mon,\n                "ten_mon": score_data.get("ten_mon") or c_info.get("name") or subject_names.get(ma_mon, f"Mon hoc {ma_mon}"),\n                "loai_hoc_phan": score_data.get("loai_hoc_phan"),\n                "status_canh_bao": score_data.get("status_canh_bao", "An toan"),\n                "source": "local_mock",\n                "prediction": prediction.model_dump(),\n                "diem_tong_ket": computed_tong,\n                "diem_chu": computed_chu,\n                "diem_he_4": computed_he4,\n                "tong_so_chi": score_data.get("tong_so_chi") or c_info.get("credits", 3),\n                "hoc_ky": score_data.get("hoc_ky") or c_info.get("hoc_ky", 1),\n                "thuong_xuyen": score_data.get("diem_thong_thuong") or score_data.get("diem_thuong_ky_lt_list") or [],\n                "giua_ky": score_data.get("diem_giua_ky") or score_data.get("diem_giua_ky_lt"),\n                "thuc_hanh": score_data.get("diem_thuc_hanh_hien_tai") or [],\n                "thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),\n                "diem_cuoi_ky": score_data.get("diem_cuoi_ky"),\n            })\n        except Exception as e:\n            results.append({\n                "student_id": record_student_id,\n                "ma_mon": ma_mon,\n                "ten_mon": score_data.get("ten_mon") or c_info.get("name") or subject_names.get(ma_mon, f"Mon hoc {ma_mon}"),\n                "loai_hoc_phan": score_data.get("loai_hoc_phan"),\n                "status_canh_bao": "Khong tinh duoc",\n                "source": "local_mock",\n                "error": str(e),\n                "diem_tong_ket": computed_tong,\n                "diem_chu": computed_chu,\n                "diem_he_4": computed_he4,\n                "tong_so_chi": score_data.get("tong_so_chi") or c_info.get("credits", 3),\n                "hoc_ky": score_data.get("hoc_ky") or c_info.get("hoc_ky", 1),\n                "thuong_xuyen": score_data.get("diem_thong_thuong") or score_data.get("diem_thuong_ky_lt_list") or [],\n                "giua_ky": score_data.get("diem_giua_ky") or score_data.get("diem_giua_ky_lt"),\n                "thuc_hanh": score_data.get("diem_thuc_hanh_hien_tai") or [],\n                "thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),\n                "diem_cuoi_ky": score_data.get("diem_cuoi_ky"),\n            })\n\n\n    if not results:\n        raise HTTPException(\n            status_code=404,\n            detail=f"Không tìm thấy bảng điểm cho MSSV '{student_id}'.",\n        )\n\n    return results\n\n@router.get(\n    "/warnings",\n    response_model=List[dict],\n    summary="Danh sách cảnh báo học vụ từ Silver/Gold Table – Chỉ Admin",\n)\nasync def get_warnings(\n    current_user: UserOut = Depends(require_role(UserRole.ADMIN)),\n) -> List[dict]:\n    from app.db.databricks_db import MOCK_GOLD_DB, query_silver_warnings_from_cloud\n    from app.services.ml_service import predict_failure_risk\n    \n    warnings = []\n    \n    student_names = {\n        "SV1001": "Nguyễn Thảo Anh",\n        "SV1002": "Vũ Hải Vy",\n        "SV123456": "Nguyễn Văn An",\n        "23670631": "Nguyễn Trần Khánh Vy",\n        "23674120": "Phạm Minh Anh",\n        "23690184": "Trần Lê Tuấn",\n    }\n    \n    subject_names = {\n        "INT1001": "Lập trình Python (Tích hợp)",\n        "INT1002": "Cơ sở dữ liệu",\n        "GDQP102": "Giáo dục quốc phòng*",\n        "INT1306": "Cấu trúc dữ liệu & Giải thuật",\n        "INT1340": "Thực hành Hệ điều hành",\n        "INT1410": "Mạng máy tính",\n    }\n\n    # 1. Ưu tiên truy vấn trực tiếp từ Databricks Silver Table\n    cloud_rows = query_silver_warnings_from_cloud()\n    if cloud_rows is not None:\n        for row in cloud_rows:\n            student_id = row.get("student_id")\n            student_name = row.get("student_name") or student_names.get(student_id, f"Sinh viên {student_id}")\n            ma_mon = row.get("ma_mon")\n            ten_mon = row.get("ten_mon") or subject_names.get(ma_mon, f"Môn học {ma_mon}")\n            loai_hp = row.get("loai_hoc_phan", "ly_thuyet")\n            \n            tx1 = row.get("thuong_xuyen_1")\n            tx2 = row.get("thuong_xuyen_2")\n            tk_list = [x for x in (tx1, tx2) if x is not None]\n            tk_avg = sum(tk_list) / len(tk_list) if tk_list else 4.0\n            gk_val = row.get("giua_ky") if row.get("giua_ky") is not None else 4.0\n            \n            is_warning = False\n            reason = ""\n            \n            th1 = row.get("thuc_hanh_1")\n            th2 = row.get("thuc_hanh_2")\n            th3 = row.get("thuc_hanh_3")\n            th_list = [x for x in (th1, th2, th3) if x is not None]\n            th_avg = sum(th_list) / len(th_list) if th_list else None\n            \n            if loai_hp in ("thuc_hanh", "tich_hop") and th_avg is not None and th_avg < 3.0:\n                is_warning = True\n                reason = f"Liệt thực hành (TH trung bình = {th_avg:.1f})"\n            elif (0.2 * tk_avg + 0.3 * gk_val) < 4.0:\n                is_warning = True\n                reason = f"Điểm thành phần tích lũy quá thấp (ĐTB_TK/GK = {round(0.2*tk_avg + 0.3*gk_val, 1)})"\n            elif row.get("qt_10") is not None and row.get("qt_10") < 4.0:\n                is_warning = True\n                reason = "Nguy cơ rớt môn"\n                \n            if is_warning:\n                fail_risk = await predict_failure_risk(tk_avg, gk_val)\n                warnings.append({\n                    "student_id": student_id,\n                    "student_name": student_name,\n                    "ma_mon": ma_mon,\n                    "ten_mon": ten_mon,\n                    "loai_hoc_phan": loai_hp,\n                    "fail_risk": round(fail_risk * 100, 1),\n                    "diem_thuong_ky": round(tk_avg, 1),\n                    "diem_giua_ky": round(gk_val, 1),\n                    "status": "Lọc từ Silver Table (Databricks Cloud)"\n                })\n        \n        # Đảm bảo có sinh viên mẫu đầy đủ trong trường hợp chạy cloud\n        if not any(w["student_id"] == "23690184" for w in warnings):\n            warnings.append({\n                "student_id": "23690184",\n                "student_name": "Trần Lê Tuấn",\n                "ma_mon": "INT1306",\n                "ten_mon": "Cấu trúc dữ liệu & Giải thuật",\n                "loai_hoc_phan": "ly_thuyet",\n                "reason": "Nguy cơ rớt môn cao (Dự báo ML = 82%)",\n                "fail_risk": 82.0,\n                "diem_thuong_ky": 3.0,\n                "diem_giua_ky": 3.0,\n                "status": "MLflow Predict"\n            })\n        return warnings\n\n    # 2. Fallback về Local Mock Database\n    for (student_id, ma_mon), record in MOCK_GOLD_DB.items():\n        tk_list = record.get("diem_thong_thuong") or record.get("diem_thuong_ky_lt_list") or []\n        tk_avg = sum(tk_list) / len(tk_list) if tk_list else 4.0\n        gk = record.get("diem_giua_ky") or record.get("diem_giua_ky_lt")\n        gk_val = gk if gk is not None else 4.0\n        \n        is_warning = False\n        reason = ""\n        \n        th_list = record.get("diem_thuc_hanh_hien_tai") or []\n        th_avg = sum(th_list) / len(th_list) if th_list else None\n        th_tichhop = record.get("diem_thuc_hanh_tich_hop")\n        \n        if th_avg is not None and th_avg < 3.0:\n            is_warning = True\n            reason = f"Liệt thực hành (TH trung bình = {th_avg:.1f})"\n        elif th_tichhop is not None and th_tichhop < 3.0:\n            is_warning = True\n            reason = f"Liệt thực hành tích hợp (TH = {th_tichhop:.1f})"\n        elif (0.2 * tk_avg + 0.3 * gk_val) < 4.0:\n            is_warning = True\n            reason = f"Điểm thành phần tích lũy quá thấp (ĐTB_TK/GK = {round(0.2*tk_avg + 0.3*gk_val, 1)})"\n        elif record.get("status_canh_bao") == "Nguy co":\n            is_warning = True\n            reason = "Cảnh báo học vụ chung"\n            \n        if student_id in ["23670631", "23674120", "23690184"]:\n            is_warning = True\n            if student_id == "23670631":\n                reason = "Liệt thực hành (TH = 2.0)"\n                tk_avg, gk_val = 3.5, 4.0\n            elif student_id == "23674120":\n                reason = "Điểm thường kỳ quá thấp (ĐTB_TK = 3.2)"\n                tk_avg, gk_val = 3.2, 5.0\n            elif student_id == "23690184":\n                reason = "Nguy cơ rớt môn cao (Dự báo ML = 82%)"\n                tk_avg, gk_val = 3.0, 3.0\n                \n        if is_warning:\n            fail_risk = await predict_failure_risk(tk_avg, gk_val)\n            warnings.append({\n                "student_id": student_id,\n                "student_name": student_names.get(student_id, f"Sinh viên {student_id}"),\n                "ma_mon": ma_mon,\n                "ten_mon": subject_names.get(ma_mon, f"Môn học {ma_mon}"),\n                "loai_hoc_phan": record.get("loai_hoc_phan", "ly_thuyet"),\n                "reason": reason,\n                "fail_risk": round(fail_risk * 100, 1),\n                "diem_thuong_ky": round(tk_avg, 1),\n                "diem_giua_ky": round(gk_val, 1),\n                "status": "Lá»c tá»« Silver Table"\n            })\n            \n    # Äáº£m báº£o cÃ³ sinh viÃªn máº«u Ä‘áº§y Ä‘á»§\n    if not any(w["student_id"] == "23690184" for w in warnings):\n        warnings.append({\n            "student_id": "23690184",\n            "student_name": "Tráº§n LÃª Tuáº¥n",\n            "ma_mon": "INT1306",\n            "ten_mon": "Cáº¥u trÃºc dá»¯ liá»‡u & Giáº£i thuáº­t",\n            "loai_hoc_phan": "ly_thuyet",\n            "reason": "Nguy cÆ¡ rá»›t mÃ´n cao (Dá»± bÃ¡o ML = 82%)",\n            "fail_risk": 82.0,\n            "diem_thuong_ky": 3.0,\n            "diem_giua_ky": 3.0,\n            "status": "MLflow Predict"\n        })\n        \n    return warnings\n\n\n@router.post(\n    "/predict-risk",\n    summary="Dá»± Ä‘oÃ¡n tá»· lá»‡ rá»›t mÃ´n báº±ng mÃ´ hÃ¬nh mÃ¡y há»c RF â€“ Admin",\n)\nasync def predict_risk(\n    req: PredictRiskRequest,\n    current_user: UserOut = Depends(require_role(UserRole.ADMIN)),\n) -> dict:\n    from app.services.ml_service import predict_failure_risk\n    from app.core.config import settings\n    \n    fail_risk = await predict_failure_risk(req.diem_thuong_ky, req.diem_giua_ky)\n    \n    host = settings.DATABRICKS_ML_SERVER_HOSTNAME\n    token = settings.DATABRICKS_ML_TOKEN\n    source = "Databricks MLflow Serverless" if (host and token) else "Local Random Forest Fallback"\n    \n    return {\n        "diem_thuong_ky": req.diem_thuong_ky,\n        "diem_giua_ky": req.diem_giua_ky,\n        "fail_risk": round(fail_risk * 100, 1),\n        "model_source": source\n    }\n\n\n@router.post(
+"""
+SmartGPA â€“ Simulation Engine Router
+Endpoints: /simulation/simulate, /simulation/score-map
+"""
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.core.dependencies import get_current_user, require_role
+from app.models.schemas import (
+    ScoreMappingItem,
+    SimulationRequest,
+    SimulationResult,
+    SimulationCalcRequest,
+    DiemChuTarget,
+    UserOut,
+    UserRole,
+    PredictRiskRequest,
+    EmailWarningRequest,
+)
+from app.services.simulation_service import get_score_mapping, simulate
+from app.db.databricks_db import query_gold_diem_sinh_vien, query_gold_predictions_by_student
+
+router = APIRouter(prefix="/simulation", tags=["Simulation Engine"])
+
+
+def _build_simulation_from_score_data(score_data: dict, target: DiemChuTarget) -> SimulationResult:
+    loai_hp = score_data.get("loai_hoc_phan", "ly_thuyet")
+
+    if loai_hp == "tich_hop":
+        t_th = score_data.get("diem_thuc_hanh_tich_hop")
+        tk_lt = score_data.get("diem_thuong_ky_lt_list")
+        gk_lt = score_data.get("diem_giua_ky_lt")
+        chi_lt = score_data.get("so_chi_lt") or 2
+
+        if t_th is None or tk_lt is None or len(tk_lt) != chi_lt or gk_lt is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Báº£ng Ä‘iá»ƒm tÃ­ch há»£p chÆ°a Ä‘áº§y Ä‘á»§ Ä‘áº§u Ä‘iá»ƒm thÃ nh pháº§n Ä‘á»ƒ tÃ­nh dá»± bÃ¡o.",
+            )
+
+    sim_payload = {
+        "loai_hoc_phan": loai_hp,
+        "muc_tieu": target,
+        "so_tin_chi": score_data.get("tong_so_chi"),
+        "diem_thuong_ky_list": score_data.get("diem_thong_thuong"),
+        "diem_giua_ky": score_data.get("diem_giua_ky"),
+        "diem_thuc_hanh_hien_tai": score_data.get("diem_thuc_hanh_hien_tai"),
+        "so_chi_lt": score_data.get("so_chi_lt"),
+        "so_chi_th": score_data.get("so_chi_th"),
+        "diem_thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),
+        "diem_thuong_ky_lt_list": score_data.get("diem_thuong_ky_lt_list"),
+        "diem_giua_ky_lt": score_data.get("diem_giua_ky_lt"),
+    }
+
+    sim_req = SimulationRequest(**sim_payload)
+    res = simulate(sim_req)
+    res.chi_tiet["full_scores"] = {
+        "diem_thong_thuong": score_data.get("diem_thong_thuong") or [],
+        "diem_giua_ky": score_data.get("diem_giua_ky"),
+        "diem_cuoi_ky": score_data.get("diem_cuoi_ky"),
+        "loai_hoc_phan": loai_hp,
+        "so_chi_lt": score_data.get("so_chi_lt"),
+        "so_chi_th": score_data.get("so_chi_th"),
+        "tong_so_chi": score_data.get("tong_so_chi"),
+        "diem_thuc_hanh_hien_tai": score_data.get("diem_thuc_hanh_hien_tai") or [],
+        "diem_thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),
+        "diem_thuong_ky_lt_list": score_data.get("diem_thuong_ky_lt_list") or [],
+        "diem_giua_ky_lt": score_data.get("diem_giua_ky_lt"),
+        "status_canh_bao": score_data.get("status_canh_bao"),
+    }
+    return res
+
+
+@router.post(
+    "/simulate",
+    response_model=SimulationResult,
+    summary="TÃ­nh Ä‘iá»ƒm ngÆ°á»£c (Inverse Calculation) â€“ Chá»‰ Student",
+    description="""
+**[YÃªu cáº§u vai trÃ²: Student]**
+
+TÃ­nh Ä‘iá»ƒm cáº§n Ä‘áº¡t Ä‘á»ƒ Ä‘áº¡t má»¥c tiÃªu Ä‘iá»ƒm chá»¯ mong muá»‘n. Há»— trá»£ 3 loáº¡i há»c pháº§n:
+
+---
+
+### 1. LÃ½ thuyáº¿t (`ly_thuyet`)
+```
+T = 0.2Ã—TK + 0.3Ã—GK + 0.5Ã—CK
+```
+Cáº§n truyá»n: `diem_thuong_ky`, `diem_giua_ky`
+â†’ TÃ­nh ra: **Äiá»ƒm cuá»‘i ká»³ tá»‘i thiá»ƒu cáº§n Ä‘áº¡t**
+
+---
+
+### 2. Thá»±c hÃ nh (`thuc_hanh`)
+```
+T = trung bÃ¬nh cá»™ng táº¥t cáº£ buá»•i TH
+```
+Cáº§n truyá»n: `diem_thuc_hanh_hien_tai` (list), `tong_so_buoi`
+â†’ TÃ­nh ra: **Äiá»ƒm trung bÃ¬nh cáº§n Ä‘áº¡t cho cÃ¡c buá»•i cÃ²n láº¡i**
+
+---
+
+### 3. TÃ­ch há»£p (`tich_hop`)
+```
+T = (T_LT Ã— chi_lt + T_TH Ã— chi_th) / tá»•ng_chi
+```
+Cáº§n truyá»n: `so_chi_lt`, `so_chi_th`, `diem_thuc_hanh_tich_hop`
+
+TÃ¹y chá»n: thÃªm `diem_thuong_ky_lt` + `diem_giua_ky_lt` Ä‘á»ƒ tÃ­nh sÃ¢u hÆ¡n
+â†’ TÃ­nh ra: **Äiá»ƒm tá»•ng káº¿t nhÃ¡nh LT cáº§n Ä‘áº¡t** (vÃ  CK_lt náº¿u cÃ³ thÃªm input)
+
+---
+
+### Káº¿t quáº£ báº¥t kháº£ thi
+Náº¿u Ä‘iá»ƒm cáº§n Ä‘áº¡t **> 10.0**, há»‡ thá»‘ng tráº£ vá» `is_kha_thi = false` vÃ  thÃ´ng bÃ¡o **"Má»¥c tiÃªu Báº¥t kháº£ thi"**.
+    """,
+)
+def simulate_score(
+    req: SimulationRequest,
+    _: UserOut = Depends(require_role(UserRole.STUDENT)),
+) -> SimulationResult:
+    return simulate(req)
+
+
+@router.get(
+    "/score-map",
+    response_model=List[ScoreMappingItem],
+    summary="Báº£ng quy Ä‘á»•i Ä‘iá»ƒm â€“ Táº¥t cáº£ ngÆ°á»i dÃ¹ng Ä‘Ã£ Ä‘Äƒng nháº­p",
+    description="""
+Tráº£ vá» toÃ n bá»™ báº£ng quy Ä‘á»•i Ä‘iá»ƒm tá»« thang 10 â†’ Ä‘iá»ƒm chá»¯ â†’ thang 4.
+
+| Äiá»ƒm 10 | Äiá»ƒm chá»¯ | Äiá»ƒm há»‡ 4 | ÄÃ¡nh giÃ¡ |
+|---|---|---|---|
+| 9.0 â€“ 10.0 | A+ | 4.0 | Äáº¡t |
+| 8.5 â€“ 8.9 | A | 4.0 | Äáº¡t |
+| ... | ... | ... | ... |
+| 0.0 â€“ 3.9 | F | 0.0 | KhÃ´ng Äáº¡t |
+    """,
+)
+def get_score_map(
+    _: UserOut = Depends(get_current_user),
+) -> List[ScoreMappingItem]:
+    return [ScoreMappingItem(**item) for item in get_score_mapping()]
+
+
+@router.post(
+    "/calc",
+    response_model=SimulationResult,
+    summary="Giáº£ láº­p Ä‘iá»ƒm thi tÃ­ch há»£p Databricks Delta Lake",
+    description="""
+**[YÃªu cáº§u vai trÃ²: Báº¥t ká»³ vai trÃ² nÃ o Ä‘Ã£ Ä‘Äƒng nháº­p]**
+
+Truy váº¥n báº£ng Ä‘iá»ƒm cá»§a sinh viÃªn trá»±c tiáº¿p tá»« **Gold Delta Table** cá»§a Databricks dá»±a trÃªn `student_id` vÃ  `ma_mon`.
+Sau Ä‘Ã³ tá»± Ä‘á»™ng cháº¡y Simulation Engine Ä‘á»ƒ tÃ­nh toÃ¡n Ä‘iá»ƒm thi cuá»‘i ká»³ tá»‘i thiá»ƒu cáº§n Ä‘áº¡t cho `diem_chu_muc_tieu`.
+    """,
+)
+def calculate_simulation(
+    req: SimulationCalcRequest,
+    _: UserOut = Depends(get_current_user),
+) -> SimulationResult:
+    # 1. Truy váº¥n dá»¯ liá»‡u Ä‘iá»ƒm tá»« Databricks (hoáº·c fallback vá» simulated database)
+    score_data = query_gold_diem_sinh_vien(req.student_id, req.ma_mon)
+    if not score_data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Không tìm thấy bảng điểm của sinh viên '{req.student_id}' cho môn học '{req.ma_mon}' trên hệ thống."
+        )
+        
+    # 2. Ãnh xáº¡ dá»¯ liá»‡u Gold Table sang SimulationRequest
+    loai_hp = score_data.get("loai_hoc_phan", "ly_thuyet")
+
+    if loai_hp == "tich_hop":
+        t_th = score_data.get("diem_thuc_hanh_tich_hop")
+        tk_lt = score_data.get("diem_thuong_ky_lt_list")
+        gk_lt = score_data.get("diem_giua_ky_lt")
+        chi_lt = score_data.get("so_chi_lt") or 2
+        
+        if t_th is None or tk_lt is None or len(tk_lt) != chi_lt or gk_lt is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Báº£ng Ä‘iá»ƒm tÃ­ch há»£p chÆ°a Ä‘áº§y Ä‘á»§ Ä‘áº§u Ä‘iá»ƒm thÃ nh pháº§n. YÃªu cáº§u nháº­p Ä‘áº§y Ä‘á»§ Ä‘iá»ƒm Thá»±c hÃ nh, Ä‘iá»ƒm ThÆ°á»ng ká»³ lÃ½ thuyáº¿t vÃ  Ä‘iá»ƒm Giá»¯a ká»³ lÃ½ thuyáº¿t má»›i Ä‘á»§ Ä‘iá»u kiá»‡n báº¯t Ä‘áº§u tÃ­nh Ä‘iá»ƒm thi cuá»‘i ká»³."
+            )
+
+    sim_payload = {
+        "loai_hoc_phan": loai_hp,
+        "muc_tieu": req.diem_chu_muc_tieu,
+        "so_tin_chi": score_data.get("tong_so_chi"),
+        "diem_thuong_ky_list": score_data.get("diem_thong_thuong"),
+        "diem_giua_ky": score_data.get("diem_giua_ky"),
+        "diem_thuc_hanh_hien_tai": score_data.get("diem_thuc_hanh_hien_tai"),
+        "so_chi_lt": score_data.get("so_chi_lt"),
+        "so_chi_th": score_data.get("so_chi_th"),
+        "diem_thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),
+        "diem_thuong_ky_lt_list": score_data.get("diem_thuong_ky_lt_list"),
+        "diem_giua_ky_lt": score_data.get("diem_giua_ky_lt"),
+    }
+    
+    # Chuyá»ƒn Ä‘á»•i thÃ nh SimulationRequest thÃ´ng qua validation cá»§a Pydantic
+    try:
+        sim_req = SimulationRequest(**sim_payload)
+    except Exception as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Lá»—i cáº¥u trÃºc dá»¯ liá»‡u Ä‘iá»ƒm tá»« Delta Lake: {str(e)}"
+        )
+        
+    # 3. Thá»±c thi Simulation Service
+    res = simulate(sim_req)
+    
+    # Bá»• sung thÃ´ng tin báº£ng Ä‘iá»ƒm Ä‘áº§y Ä‘á»§ (full_scores) vÃ o chi_tiet Ä‘á»ƒ frontend hiá»ƒn thá»‹
+    res.chi_tiet["full_scores"] = {
+        "diem_thong_thuong": score_data.get("diem_thong_thuong") or [],
+        "diem_giua_ky": score_data.get("diem_giua_ky"),
+        "diem_cuoi_ky": score_data.get("diem_cuoi_ky"),
+        "loai_hoc_phan": loai_hp,
+        "so_chi_lt": score_data.get("so_chi_lt"),
+        "so_chi_th": score_data.get("so_chi_th"),
+        "tong_so_chi": score_data.get("tong_so_chi"),
+        "diem_thuc_hanh_hien_tai": score_data.get("diem_thuc_hanh_hien_tai") or [],
+        "diem_thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),
+        "diem_thuong_ky_lt_list": score_data.get("diem_thuong_ky_lt_list") or [],
+        "diem_giua_ky_lt": score_data.get("diem_giua_ky_lt"),
+        "status_canh_bao": score_data.get("status_canh_bao")
+    }
+    return res
+
+
+@router.get(
+    "/student-lookup/{student_id}",
+    response_model=List[dict],
+    summary="Sinh viÃªn tra cá»©u táº¥t cáº£ mÃ´n theo MSSV",
+    description="Sinh viÃªn chá»‰ nháº­p MSSV, há»‡ thá»‘ng tráº£ vá» cÃ¡c mÃ´n Ä‘Ã£ cÃ³ Ä‘iá»ƒm vÃ  dá»± bÃ¡o Ä‘iá»ƒm cuá»‘i ká»³ cáº§n Ä‘áº¡t theo má»¥c tiÃªu.",
+)
+def lookup_student_scores(
+    student_id: str,
+    diem_chu_muc_tieu: DiemChuTarget = Query(DiemChuTarget.A),
+    current_user: UserOut = Depends(get_current_user),
+) -> List[dict]:
+    from app.db.databricks_db import MOCK_GOLD_DB
+    from app.db.real_db import COURSES_DB
+
+    subject_names = {
+        "INT1001": "Lap trinh Python",
+        "INT1002": "Co so du lieu",
+        "INT1306": "Cau truc du lieu va giai thuat",
+        "INT1340": "Thuc hanh He dieu hanh",
+        "INT1410": "Mang may tinh",
+        "mon_1": "Cau truc du lieu va giai thuat",
+        "mon_2": "Mang may tinh",
+        "mon_3": "Thuc hanh He dieu hanh",
+        "mon_4": "Thuc hanh Lap trinh huong doi tuong",
+        "GDQP102": "Giao duc quoc phong",
+    }
+
+    normalized_student_id = student_id.strip().upper()
+    if (
+        current_user.role == UserRole.STUDENT
+        and (current_user.student_id or "").strip().upper() != normalized_student_id
+    ):
+        raise HTTPException(status_code=403, detail="Sinh vien chi duoc tra cuu bang diem cua chinh minh.")
+    
+    course_map = {c["id"]: c for c in COURSES_DB}
+    results = []
+
+    # 1. Ưu tiên truy vấn trực tiếp từ Databricks Gold Table
+    databricks_rows = query_gold_predictions_by_student(normalized_student_id, diem_chu_muc_tieu.value)
+    if databricks_rows:
+        for row in databricks_rows:
+            ma_mon = row.get("ma_mon")
+            c_info = course_map.get(ma_mon, {})
+            is_feasible = bool(row.get("kha_thi"))
+            target_grade = row.get("diem_chu_muc_tieu")
+            score_needed = row.get("diem_cuoi_ky_can_dat")
+            
+            if not is_feasible:
+                msg = f"Rất tiếc! Mục tiêu đạt điểm chữ {target_grade} cho môn học này hiện tại là bất khả thi vì điểm cuối kỳ cần đạt vượt quá 10.0."
+            elif score_needed is not None and score_needed <= 3.0:
+                msg = f"Tuyệt vời! Điểm thành phần hiện tại rất tốt. Bạn chỉ cần đạt tối thiểu 3.0 điểm thi cuối kỳ (ngưỡng điểm liệt quy chế) để đạt mục tiêu điểm chữ {target_grade}."
+            else:
+                msg = f"Hãy nỗ lực ôn tập nhé! Bạn cần đạt tối thiểu {score_needed} điểm thi cuối kỳ để hoàn thành mục tiêu đạt điểm chữ {target_grade}."
+
+            results.append({
+                "student_id": row.get("student_id"),
+                "student_name": row.get("student_name"),
+                "ma_mon": ma_mon,
+                "ten_mon": row.get("ten_mon") or c_info.get("name") or subject_names.get(ma_mon, f"Mon hoc {ma_mon}"),
+                "loai_hoc_phan": row.get("loai_hoc_phan"),
+                "status_canh_bao": row.get("status_canh_bao", "An toan"),
+                "source": "databricks",
+                "prediction": {
+                    "loai_hoc_phan": row.get("loai_hoc_phan"),
+                    "muc_tieu": target_grade,
+                    "diem_muc_tieu_nguong": row.get("diem_muc_tieu_10"),
+                    "diem_can_dat": score_needed,
+                    "is_kha_thi": is_feasible,
+                    "message": msg,
+                    "chi_tiet": {
+                        "qt_10": row.get("qt_10"),
+                        "lt_qt_10": row.get("lt_qt_10"),
+                        "th_qt_10": row.get("th_qt_10"),
+                        "diem_muc_tieu_10": row.get("diem_muc_tieu_10"),
+                        "status_canh_bao": row.get("status_canh_bao"),
+                    },
+                },
+                "diem_tong_ket": row.get("diem_tong_ket") or row.get("diem_tong_ket_10") or row.get("qt_10"),
+                "diem_chu": row.get("diem_chu") or row.get("diem_chu_hien_tai"),
+                "diem_he_4": row.get("diem_he_4") or row.get("diem_4"),
+                "tong_so_chi": row.get("tong_so_chi") or row.get("so_tin_chi") or c_info.get("credits", 3),
+                "hoc_ky": row.get("hoc_ky") or c_info.get("hoc_ky", 1),
+                "thuong_xuyen": [x for x in (row.get("thuong_xuyen_1"), row.get("thuong_xuyen_2")) if x is not None],
+                "giua_ky": row.get("giua_ky"),
+                "thuc_hanh": [x for x in (row.get("thuc_hanh_1"), row.get("thuc_hanh_2"), row.get("thuc_hanh_3")) if x is not None],
+                "thuc_hanh_tich_hop": row.get("thuc_hanh_tich_hop") or row.get("th_qt_10"),
+                "diem_cuoi_ky": row.get("diem_cuoi_ky"),
+            })
+        return results
+
+    # 2. Fallback về Local Mock Database + Simulation Engine trên web server
+    for (record_student_id, ma_mon), score_data in MOCK_GOLD_DB.items():
+        if record_student_id.strip().upper() != normalized_student_id:
+            continue
+
+        c_info = course_map.get(ma_mon, {})
+        
+        # ─── Tính diem_tong_ket từ điểm thành phần (nếu có đầy đủ) ───
+        computed_tong = score_data.get("diem_tong_ket")
+        computed_chu = score_data.get("diem_chu")
+        computed_he4 = score_data.get("diem_he_4")
+        
+        if computed_tong is None:
+            loai_hp = score_data.get("loai_hoc_phan", "ly_thuyet")
+            diem_ck = score_data.get("diem_cuoi_ky")
+            
+            if loai_hp == "ly_thuyet" and diem_ck is not None:
+                tk_list = score_data.get("diem_thong_thuong") or []
+                gk = score_data.get("diem_giua_ky")
+                if tk_list and gk is not None:
+                    tk_avg = sum(tk_list) / len(tk_list)
+                    computed_tong = round(0.2 * tk_avg + 0.3 * gk + 0.5 * diem_ck, 2)
+            elif loai_hp == "thuc_hanh":
+                th_list = score_data.get("diem_thuc_hanh_hien_tai") or []
+                if th_list:
+                    computed_tong = round(sum(th_list) / len(th_list), 2)
+            elif loai_hp == "tich_hop" and diem_ck is not None:
+                th_score = score_data.get("diem_thuc_hanh_tich_hop")
+                tk_lt_list = score_data.get("diem_thuong_ky_lt_list") or []
+                gk_lt = score_data.get("diem_giua_ky_lt")
+                chi_lt = score_data.get("so_chi_lt") or 2
+                chi_th = score_data.get("so_chi_th") or 1
+                total_chi = (score_data.get("tong_so_chi") or (chi_lt + chi_th)) or 3
+                
+                if th_score is not None and tk_lt_list and gk_lt is not None:
+                    tk_lt_avg = sum(tk_lt_list) / len(tk_lt_list)
+                    t_lt = 0.2 * tk_lt_avg + 0.3 * gk_lt + 0.5 * diem_ck
+                    computed_tong = round((t_lt * chi_lt + th_score * chi_th) / total_chi, 2)
+            
+            # Quy đổi sang điểm chữ và hệ 4
+            if computed_tong is not None:
+                from app.services.simulation_service import SCORE_MAPPING
+                for entry in SCORE_MAPPING:
+                    if entry["diem_10_min"] <= computed_tong <= entry["diem_10_max"] + 0.05:
+                        computed_chu = entry["diem_chu"]
+                        computed_he4 = entry["diem_he_4"]
+                        break
+                if computed_chu is None:
+                    computed_chu = "F"
+                    computed_he4 = 0.0
+        
+        try:
+            prediction = _build_simulation_from_score_data(score_data, diem_chu_muc_tieu)
+            
+            # Đổi câu thông báo sang tiếng Việt có dấu phong phú
+            is_feasible_local = prediction.is_kha_thi
+            target_grade_local = prediction.muc_tieu
+            score_needed_local = prediction.diem_can_dat
+            if not is_feasible_local:
+                prediction.message = f"Rất tiếc! Mục tiêu đạt điểm chữ {target_grade_local} cho môn học này hiện tại là bất khả thi vì điểm cuối kỳ cần đạt vượt quá 10.0."
+            elif score_needed_local is not None and score_needed_local <= 3.0:
+                prediction.message = f"Tuyệt vời! Điểm thành phần hiện tại rất tốt. Bạn chỉ cần đạt tối thiểu 3.0 điểm thi cuối kỳ (ngưỡng điểm liệt quy chế) để đạt mục tiêu điểm chữ {target_grade_local}."
+            else:
+                prediction.message = f"Hãy nỗ lực ôn tập nhé! Bạn cần đạt tối thiểu {score_needed_local} điểm thi cuối kỳ để hoàn thành mục tiêu đạt điểm chữ {target_grade_local}."
+
+            results.append({
+                "student_id": record_student_id,
+                "ma_mon": ma_mon,
+                "ten_mon": score_data.get("ten_mon") or c_info.get("name") or subject_names.get(ma_mon, f"Mon hoc {ma_mon}"),
+                "loai_hoc_phan": score_data.get("loai_hoc_phan"),
+                "status_canh_bao": score_data.get("status_canh_bao", "An toan"),
+                "source": "local_mock",
+                "prediction": prediction.model_dump(),
+                "diem_tong_ket": computed_tong,
+                "diem_chu": computed_chu,
+                "diem_he_4": computed_he4,
+                "tong_so_chi": score_data.get("tong_so_chi") or c_info.get("credits", 3),
+                "hoc_ky": score_data.get("hoc_ky") or c_info.get("hoc_ky", 1),
+                "thuong_xuyen": score_data.get("diem_thong_thuong") or score_data.get("diem_thuong_ky_lt_list") or [],
+                "giua_ky": score_data.get("diem_giua_ky") or score_data.get("diem_giua_ky_lt"),
+                "thuc_hanh": score_data.get("diem_thuc_hanh_hien_tai") or [],
+                "thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),
+                "diem_cuoi_ky": score_data.get("diem_cuoi_ky"),
+            })
+        except Exception as e:
+            results.append({
+                "student_id": record_student_id,
+                "ma_mon": ma_mon,
+                "ten_mon": score_data.get("ten_mon") or c_info.get("name") or subject_names.get(ma_mon, f"Mon hoc {ma_mon}"),
+                "loai_hoc_phan": score_data.get("loai_hoc_phan"),
+                "status_canh_bao": "Khong tinh duoc",
+                "source": "local_mock",
+                "error": str(e),
+                "diem_tong_ket": computed_tong,
+                "diem_chu": computed_chu,
+                "diem_he_4": computed_he4,
+                "tong_so_chi": score_data.get("tong_so_chi") or c_info.get("credits", 3),
+                "hoc_ky": score_data.get("hoc_ky") or c_info.get("hoc_ky", 1),
+                "thuong_xuyen": score_data.get("diem_thong_thuong") or score_data.get("diem_thuong_ky_lt_list") or [],
+                "giua_ky": score_data.get("diem_giua_ky") or score_data.get("diem_giua_ky_lt"),
+                "thuc_hanh": score_data.get("diem_thuc_hanh_hien_tai") or [],
+                "thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),
+                "diem_cuoi_ky": score_data.get("diem_cuoi_ky"),
+            })
+
+
+    if not results:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Không tìm thấy bảng điểm cho MSSV '{student_id}'.",
+        )
+
+    return results
+
+@router.get(
+    "/warnings",
+    response_model=List[dict],
+    summary="Danh sách cảnh báo học vụ từ Silver/Gold Table – Chỉ Admin",
+)
+async def get_warnings(
+    current_user: UserOut = Depends(require_role(UserRole.ADMIN)),
+) -> List[dict]:
+    from app.db.databricks_db import MOCK_GOLD_DB, query_silver_warnings_from_cloud
+    from app.services.ml_service import predict_failure_risk
+    
+    warnings = []
+    
+    student_names = {
+        "SV1001": "Nguyễn Thảo Anh",
+        "SV1002": "Vũ Hải Vy",
+        "SV123456": "Nguyễn Văn An",
+        "23670631": "Nguyễn Trần Khánh Vy",
+        "23674120": "Phạm Minh Anh",
+        "23690184": "Trần Lê Tuấn",
+    }
+    
+    subject_names = {
+        "INT1001": "Lập trình Python (Tích hợp)",
+        "INT1002": "Cơ sở dữ liệu",
+        "GDQP102": "Giáo dục quốc phòng*",
+        "INT1306": "Cấu trúc dữ liệu & Giải thuật",
+        "INT1340": "Thực hành Hệ điều hành",
+        "INT1410": "Mạng máy tính",
+    }
+
+    # 1. Ưu tiên truy vấn trực tiếp từ Databricks Silver Table
+    cloud_rows = query_silver_warnings_from_cloud()
+    if cloud_rows is not None:
+        for row in cloud_rows:
+            student_id = row.get("student_id")
+            student_name = row.get("student_name") or student_names.get(student_id, f"Sinh viên {student_id}")
+            ma_mon = row.get("ma_mon")
+            ten_mon = row.get("ten_mon") or subject_names.get(ma_mon, f"Môn học {ma_mon}")
+            loai_hp = row.get("loai_hoc_phan", "ly_thuyet")
+            
+            tx1 = row.get("thuong_xuyen_1")
+            tx2 = row.get("thuong_xuyen_2")
+            tk_list = [x for x in (tx1, tx2) if x is not None]
+            tk_avg = sum(tk_list) / len(tk_list) if tk_list else 4.0
+            gk_val = row.get("giua_ky") if row.get("giua_ky") is not None else 4.0
+            
+            is_warning = False
+            reason = ""
+            
+            th1 = row.get("thuc_hanh_1")
+            th2 = row.get("thuc_hanh_2")
+            th3 = row.get("thuc_hanh_3")
+            th_list = [x for x in (th1, th2, th3) if x is not None]
+            th_avg = sum(th_list) / len(th_list) if th_list else None
+            
+            if loai_hp in ("thuc_hanh", "tich_hop") and th_avg is not None and th_avg < 3.0:
+                is_warning = True
+                reason = f"Liệt thực hành (TH trung bình = {th_avg:.1f})"
+            elif (0.2 * tk_avg + 0.3 * gk_val) < 4.0:
+                is_warning = True
+                reason = f"Điểm thành phần tích lũy quá thấp (ĐTB_TK/GK = {round(0.2*tk_avg + 0.3*gk_val, 1)})"
+            elif row.get("qt_10") is not None and row.get("qt_10") < 4.0:
+                is_warning = True
+                reason = "Nguy cơ rớt môn"
+                
+            if is_warning:
+                fail_risk = await predict_failure_risk(tk_avg, gk_val)
+                warnings.append({
+                    "student_id": student_id,
+                    "student_name": student_name,
+                    "ma_mon": ma_mon,
+                    "ten_mon": ten_mon,
+                    "loai_hoc_phan": loai_hp,
+                    "fail_risk": round(fail_risk * 100, 1),
+                    "diem_thuong_ky": round(tk_avg, 1),
+                    "diem_giua_ky": round(gk_val, 1),
+                    "status": "Lọc từ Silver Table (Databricks Cloud)"
+                })
+        
+        # Đảm bảo có sinh viên mẫu đầy đủ trong trường hợp chạy cloud
+        if not any(w["student_id"] == "23690184" for w in warnings):
+            warnings.append({
+                "student_id": "23690184",
+                "student_name": "Trần Lê Tuấn",
+                "ma_mon": "INT1306",
+                "ten_mon": "Cấu trúc dữ liệu & Giải thuật",
+                "loai_hoc_phan": "ly_thuyet",
+                "reason": "Nguy cơ rớt môn cao (Dự báo ML = 82%)",
+                "fail_risk": 82.0,
+                "diem_thuong_ky": 3.0,
+                "diem_giua_ky": 3.0,
+                "status": "MLflow Predict"
+            })
+        return warnings
+
+    # 2. Fallback về Local Mock Database
+    for (student_id, ma_mon), record in MOCK_GOLD_DB.items():
+        tk_list = record.get("diem_thong_thuong") or record.get("diem_thuong_ky_lt_list") or []
+        tk_avg = sum(tk_list) / len(tk_list) if tk_list else 4.0
+        gk = record.get("diem_giua_ky") or record.get("diem_giua_ky_lt")
+        gk_val = gk if gk is not None else 4.0
+        
+        is_warning = False
+        reason = ""
+        
+        th_list = record.get("diem_thuc_hanh_hien_tai") or []
+        th_avg = sum(th_list) / len(th_list) if th_list else None
+        th_tichhop = record.get("diem_thuc_hanh_tich_hop")
+        
+        if th_avg is not None and th_avg < 3.0:
+            is_warning = True
+            reason = f"Liệt thực hành (TH trung bình = {th_avg:.1f})"
+        elif th_tichhop is not None and th_tichhop < 3.0:
+            is_warning = True
+            reason = f"Liệt thực hành tích hợp (TH = {th_tichhop:.1f})"
+        elif (0.2 * tk_avg + 0.3 * gk_val) < 4.0:
+            is_warning = True
+            reason = f"Điểm thành phần tích lũy quá thấp (ĐTB_TK/GK = {round(0.2*tk_avg + 0.3*gk_val, 1)})"
+        elif record.get("status_canh_bao") == "Nguy co":
+            is_warning = True
+            reason = "Cảnh báo học vụ chung"
+            
+        if student_id in ["23670631", "23674120", "23690184"]:
+            is_warning = True
+            if student_id == "23670631":
+                reason = "Liệt thực hành (TH = 2.0)"
+                tk_avg, gk_val = 3.5, 4.0
+            elif student_id == "23674120":
+                reason = "Điểm thường kỳ quá thấp (ĐTB_TK = 3.2)"
+                tk_avg, gk_val = 3.2, 5.0
+            elif student_id == "23690184":
+                reason = "Nguy cơ rớt môn cao (Dự báo ML = 82%)"
+                tk_avg, gk_val = 3.0, 3.0
+                
+        if is_warning:
+            fail_risk = await predict_failure_risk(tk_avg, gk_val)
+            warnings.append({
+                "student_id": student_id,
+                "student_name": student_names.get(student_id, f"Sinh viên {student_id}"),
+                "ma_mon": ma_mon,
+                "ten_mon": subject_names.get(ma_mon, f"Môn học {ma_mon}"),
+                "loai_hoc_phan": record.get("loai_hoc_phan", "ly_thuyet"),
+                "reason": reason,
+                "fail_risk": round(fail_risk * 100, 1),
+                "diem_thuong_ky": round(tk_avg, 1),
+                "diem_giua_ky": round(gk_val, 1),
+                "status": "Lá»c tá»« Silver Table"
+            })
+            
+    # Äáº£m báº£o cÃ³ sinh viÃªn máº«u Ä‘áº§y Ä‘á»§
+    if not any(w["student_id"] == "23690184" for w in warnings):
+        warnings.append({
+            "student_id": "23690184",
+            "student_name": "Tráº§n LÃª Tuáº¥n",
+            "ma_mon": "INT1306",
+            "ten_mon": "Cáº¥u trÃºc dá»¯ liá»‡u & Giáº£i thuáº­t",
+            "loai_hoc_phan": "ly_thuyet",
+            "reason": "Nguy cÆ¡ rá»›t mÃ´n cao (Dá»± bÃ¡o ML = 82%)",
+            "fail_risk": 82.0,
+            "diem_thuong_ky": 3.0,
+            "diem_giua_ky": 3.0,
+            "status": "MLflow Predict"
+        })
+        
+    return warnings
+
+
+@router.post(
+    "/predict-risk",
+    summary="Dá»± Ä‘oÃ¡n tá»· lá»‡ rá»›t mÃ´n báº±ng mÃ´ hÃ¬nh mÃ¡y há»c RF â€“ Admin",
+)
+async def predict_risk(
+    req: PredictRiskRequest,
+    current_user: UserOut = Depends(require_role(UserRole.ADMIN)),
+) -> dict:
+    from app.services.ml_service import predict_failure_risk
+    from app.core.config import settings
+    
+    fail_risk = await predict_failure_risk(req.diem_thuong_ky, req.diem_giua_ky)
+    
+    host = settings.DATABRICKS_ML_SERVER_HOSTNAME
+    token = settings.DATABRICKS_ML_TOKEN
+    source = "Databricks MLflow Serverless" if (host and token) else "Local Random Forest Fallback"
+    
+    return {
+        "diem_thuong_ky": req.diem_thuong_ky,
+        "diem_giua_ky": req.diem_giua_ky,
+        "fail_risk": round(fail_risk * 100, 1),
+        "model_source": source
+    }
+
+
+@router.post(
     "/send-warning-email",
     summary="Gửi email cảnh báo học vụ khẩn cấp cho sinh viên – Chỉ Admin",
 )
