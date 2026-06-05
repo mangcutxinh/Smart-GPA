@@ -776,9 +776,14 @@ def _seed_assignments_and_students():
                     ck = round(min(10.0, base + rng.uniform(-0.5, 1.0)), 1)
                     tong = round(0.2 * ((tk1 + tk2) / 2.0) + 0.3 * gk + 0.5 * ck, 1)
                     tong = min(10.0, tong)
-                    diem_chu, diem_he4 = _grade_letter(tong)
-                    ket_qua = "Dat" if tong >= 4.0 else "Khong dat"
-                    status = "An toan" if tong >= 4.0 else "Nguy co"
+                    if ck < 3.0 or tong < 4.0:
+                        diem_chu, diem_he4 = "F", 0.0
+                        ket_qua = "Khong dat"
+                        status = "Nguy co"
+                    else:
+                        diem_chu, diem_he4 = _grade_letter(tong)
+                        ket_qua = "Dat"
+                        status = "An toan"
 
                 MOCK_GOLD_DB[key] = {
                     "student_id": mssv, "student_name": ho_ten,
@@ -801,9 +806,14 @@ def _seed_assignments_and_students():
                     status = "An toan" if avg_th >= 4.0 else "Nguy co"
                 else:
                     ck = avg_th; tong = ck
-                    diem_chu, diem_he4 = _grade_letter(tong)
-                    ket_qua = "Dat" if tong >= 4.0 else "Khong dat"
-                    status = "An toan" if tong >= 4.0 else "Nguy co"
+                    if tong < 4.0:
+                        diem_chu, diem_he4 = "F", 0.0
+                        ket_qua = "Khong dat"
+                        status = "Nguy co"
+                    else:
+                        diem_chu, diem_he4 = _grade_letter(tong)
+                        ket_qua = "Dat"
+                        status = "An toan"
 
                 MOCK_GOLD_DB[key] = {
                     "student_id": mssv, "student_name": ho_ten,
@@ -830,11 +840,17 @@ def _seed_assignments_and_students():
                 else:
                     ck = round(min(10.0, base + rng.uniform(-0.5, 1.0)), 1)
                     tk_avg = round(sum(tk_lt) / len(tk_lt), 1)
-                    tong = round(0.2 * tk_avg + 0.3 * gk_lt + 0.2 * th_val + 0.3 * ck, 1)
+                    lt_score = 0.2 * tk_avg + 0.3 * gk_lt + 0.5 * ck
+                    tong = round((lt_score * 2.0 + th_val * 1.0) / 3.0, 1)
                     tong = min(10.0, tong)
-                    diem_chu, diem_he4 = _grade_letter(tong)
-                    ket_qua = "Dat" if tong >= 4.0 else "Khong dat"
-                    status = "An toan" if tong >= 4.0 else "Nguy co"
+                    if ck < 3.0 or th_val < 3.0 or tong < 4.0:
+                        diem_chu, diem_he4 = "F", 0.0
+                        ket_qua = "Khong dat"
+                        status = "Nguy co"
+                    else:
+                        diem_chu, diem_he4 = _grade_letter(tong)
+                        ket_qua = "Dat"
+                        status = "An toan"
 
                 MOCK_GOLD_DB[key] = {
                     "student_id": mssv, "student_name": ho_ten,
@@ -856,3 +872,11 @@ _load_csv_data()
 _seed_admin()
 _seed_demo_users()
 _seed_assignments_and_students()
+
+try:
+    from app.db.persistence import load_db_from_disk
+    load_db_from_disk()
+except Exception as e:
+    import sys
+    sys.stderr.write(f"Loi nạp database sao luu: {e}\n")
+

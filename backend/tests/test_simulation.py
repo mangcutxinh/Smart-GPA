@@ -117,17 +117,44 @@ class TestTC05LyThuyet:
         assert data["is_kha_thi"] is False
 
     def test_tc05_guaranteed_when_already_passing(self):
-        """Điểm TK + GK đã đủ → is_kha_thi True, diem_can_dat = 0.0"""
+        """Điểm TK + GK đã đủ → is_kha_thi True, diem_can_dat = 3.0 (do quy chế CK >= 3.0)"""
         resp = _simulate({
             "loai_hoc_phan": "ly_thuyet",
-            "muc_tieu": "D",          # Ngưỡng D = 4.0
+            "muc_tieu": "C",          # Ngưỡng C = 5.5
             "so_tin_chi": 2,
             "diem_thuong_ky_list": [9.0, 9.0],
             "diem_giua_ky": 9.0,
         })
         data = resp.json()
         assert data["is_kha_thi"] is True
-        assert data["diem_can_dat"] == 0.0
+        assert data["diem_can_dat"] == 3.0
+
+    def test_tc05_passing_target_gpa_d_d_plus(self):
+        """Mục tiêu D+ hoặc D (GPA >= 1.0) là khả thi và có điểm thi cần đạt tối thiểu 3.0"""
+        for target in ["D", "D+"]:
+            resp = _simulate({
+                "loai_hoc_phan": "ly_thuyet",
+                "muc_tieu": target,
+                "so_tin_chi": 2,
+                "diem_thuong_ky_list": [7.0, 7.0],
+                "diem_giua_ky": 7.0,
+            })
+            data = resp.json()
+            assert data["is_kha_thi"] is True
+            assert data["diem_can_dat"] == 3.0
+
+    def test_tc05_ck_cap_at_3_0(self):
+        """Điểm thi cần đạt dưới 3.0 → Cắt ở 3.0"""
+        resp = _simulate({
+            "loai_hoc_phan": "ly_thuyet",
+            "muc_tieu": "C",          # Ngưỡng C = 5.5
+            "so_tin_chi": 2,
+            "diem_thuong_ky_list": [8.5, 8.5],
+            "diem_giua_ky": 8.5,
+        })
+        data = resp.json()
+        assert data["is_kha_thi"] is True
+        assert data["diem_can_dat"] == 3.0
 
 
 # ─────────────────────────────────────────────────────────────
@@ -317,7 +344,7 @@ class TestThucHanh:
         """Đã hoàn thành nhưng ĐTB thực hành < 3.0 → Cảnh báo liệt"""
         resp = _simulate({
             "loai_hoc_phan": "thuc_hanh",
-            "muc_tieu": "D",
+            "muc_tieu": "C",
             "diem_thuc_hanh_hien_tai": [2.0, 2.0, 2.0],
             "so_tin_chi": 3,
         })
@@ -332,7 +359,7 @@ class TestThucHanh:
         """
         resp = _simulate({
             "loai_hoc_phan": "thuc_hanh",
-            "muc_tieu": "D",
+            "muc_tieu": "C",
             "diem_thuc_hanh_hien_tai": [0.0, 0.0, 0.0, 0.0],
             "so_tin_chi": 5,
         })

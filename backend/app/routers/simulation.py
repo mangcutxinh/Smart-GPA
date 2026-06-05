@@ -309,6 +309,51 @@ def lookup_student_scores(
             continue
 
         c_info = course_map.get(ma_mon, {})
+        
+        # ─── Tính diem_tong_ket từ điểm thành phần (nếu có đầy đủ) ───
+        computed_tong = score_data.get("diem_tong_ket")
+        computed_chu = score_data.get("diem_chu")
+        computed_he4 = score_data.get("diem_he_4")
+        
+        if computed_tong is None:
+            loai_hp = score_data.get("loai_hoc_phan", "ly_thuyet")
+            diem_ck = score_data.get("diem_cuoi_ky")
+            
+            if loai_hp == "ly_thuyet" and diem_ck is not None:
+                tk_list = score_data.get("diem_thong_thuong") or []
+                gk = score_data.get("diem_giua_ky")
+                if tk_list and gk is not None:
+                    tk_avg = sum(tk_list) / len(tk_list)
+                    computed_tong = round(0.2 * tk_avg + 0.3 * gk + 0.5 * diem_ck, 2)
+            elif loai_hp == "thuc_hanh":
+                th_list = score_data.get("diem_thuc_hanh_hien_tai") or []
+                if th_list:
+                    computed_tong = round(sum(th_list) / len(th_list), 2)
+            elif loai_hp == "tich_hop" and diem_ck is not None:
+                th_score = score_data.get("diem_thuc_hanh_tich_hop")
+                tk_lt_list = score_data.get("diem_thuong_ky_lt_list") or []
+                gk_lt = score_data.get("diem_giua_ky_lt")
+                chi_lt = score_data.get("so_chi_lt") or 2
+                chi_th = score_data.get("so_chi_th") or 1
+                total_chi = (score_data.get("tong_so_chi") or (chi_lt + chi_th)) or 3
+                
+                if th_score is not None and tk_lt_list and gk_lt is not None:
+                    tk_lt_avg = sum(tk_lt_list) / len(tk_lt_list)
+                    t_lt = 0.2 * tk_lt_avg + 0.3 * gk_lt + 0.5 * diem_ck
+                    computed_tong = round((t_lt * chi_lt + th_score * chi_th) / total_chi, 2)
+            
+            # Quy đổi sang điểm chữ và hệ 4
+            if computed_tong is not None:
+                from app.services.simulation_service import SCORE_MAPPING
+                for entry in SCORE_MAPPING:
+                    if entry["diem_10_min"] <= computed_tong <= entry["diem_10_max"] + 0.05:
+                        computed_chu = entry["diem_chu"]
+                        computed_he4 = entry["diem_he_4"]
+                        break
+                if computed_chu is None:
+                    computed_chu = "F"
+                    computed_he4 = 0.0
+        
         try:
             prediction = _build_simulation_from_score_data(score_data, diem_chu_muc_tieu)
             results.append({
@@ -319,9 +364,9 @@ def lookup_student_scores(
                 "status_canh_bao": score_data.get("status_canh_bao", "An toan"),
                 "source": "local_mock",
                 "prediction": prediction.model_dump(),
-                "diem_tong_ket": score_data.get("diem_tong_ket"),
-                "diem_chu": score_data.get("diem_chu"),
-                "diem_he_4": score_data.get("diem_he_4"),
+                "diem_tong_ket": computed_tong,
+                "diem_chu": computed_chu,
+                "diem_he_4": computed_he4,
                 "tong_so_chi": score_data.get("tong_so_chi") or c_info.get("credits", 3),
                 "hoc_ky": score_data.get("hoc_ky") or c_info.get("hoc_ky", 1),
             })
@@ -334,12 +379,13 @@ def lookup_student_scores(
                 "status_canh_bao": "Khong tinh duoc",
                 "source": "local_mock",
                 "error": str(e),
-                "diem_tong_ket": score_data.get("diem_tong_ket"),
-                "diem_chu": score_data.get("diem_chu"),
-                "diem_he_4": score_data.get("diem_he_4"),
+                "diem_tong_ket": computed_tong,
+                "diem_chu": computed_chu,
+                "diem_he_4": computed_he4,
                 "tong_so_chi": score_data.get("tong_so_chi") or c_info.get("credits", 3),
                 "hoc_ky": score_data.get("hoc_ky") or c_info.get("hoc_ky", 1),
             })
+
 
     if not results:
         raise HTTPException(

@@ -332,7 +332,12 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
                             qt_10 = silver_row.get("qt_10")
                             qt_val = qt_10 if qt_10 is not None else diem_tich_luy
                             
+                            # Điểm thi cuối kỳ nếu có
+                            ck_val = silver_row.get("diem_cuoi_ky")
+                            
                             if loai_hp in ("thuc_hanh", "tich_hop") and diem_trung_binh_th < 3.0:
+                                diem_chu = "F"
+                            elif ck_val is not None and ck_val < 3.0:
                                 diem_chu = "F"
                             elif qt_val >= 9.0:
                                 diem_chu = "A+"
@@ -356,6 +361,8 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
                             # Tính status_canh_bao_final
                             if loai_hp in ("thuc_hanh", "tich_hop") and diem_trung_binh_th < 3.0:
                                 status_canh_bao_final = "CANH BAO: LIET THUC HANH (ROT MON)"
+                            elif ck_val is not None and ck_val < 3.0:
+                                status_canh_bao_final = "CANH BAO: LIET THI CUOI KY (ROT MON)"
                             elif qt_val < 4.0:
                                 status_canh_bao_final = "Nguy co rot mon"
                             else:
@@ -370,34 +377,46 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
             logger.error(f"Lỗi kết nối hoặc truy vấn Databricks trong lay_diem_sinh_vien_tu_cloud: {e}. Fallback về mock data.", exc_info=True)
     else:
         logger.info("Chưa cấu hình Databricks Cloud. Fallback về Mock Database cục bộ.")
-
+ 
     # ─── Fallback về Mock Database ──────────────────────────────────────
     key = (student_id, ma_mon)
     mock_record = MOCK_GOLD_DB.get(key)
     if not mock_record:
         return None
-
+ 
     # Ánh xạ thông minh từ mock record sang cấu trúc tuple của câu SELECT
     loai_hp = mock_record.get("loai_hoc_phan", "ly_thuyet")
     tong_so_chi = mock_record.get("tong_so_chi", 2)
     status_canh_bao = mock_record.get("status_canh_bao", "An toan")
     status_canh_bao_final = "An toan" if status_canh_bao == "An toan" else "Nguy co"
-
+ 
     # Tính toán các đầu điểm giả lập tương ứng
     if loai_hp == "ly_thuyet":
         tk_list = mock_record.get("diem_thong_thuong") or []
         tk_avg = sum(tk_list) / len(tk_list) if tk_list else 8.0
         gk = mock_record.get("diem_giua_ky")
         gk_val = gk if gk is not None else 8.0
-        diem_tich_luy = round(0.2 * tk_avg + 0.3 * gk_val, 2)
+        ck = mock_record.get("diem_cuoi_ky")
+        ck_val = ck if ck is not None else 8.0
+        diem_tich_luy = round(0.2 * tk_avg + 0.3 * gk_val + 0.5 * ck_val, 2)
         diem_trung_binh_th = 0.0
-        diem_chu = "B+"
+        if ck_val < 3.0 or diem_tich_luy < 4.0:
+            diem_chu = "F"
+            status_canh_bao_final = "Nguy co"
+        else:
+            diem_chu = "B+"
+            status_canh_bao_final = "An toan"
     elif loai_hp == "thuc_hanh":
         th_list = mock_record.get("diem_thuc_hanh_hien_tai") or []
         th_avg = sum(th_list) / len(th_list) if th_list else 8.0
         diem_tich_luy = round(th_avg, 2)
         diem_trung_binh_th = round(th_avg, 2)
-        diem_chu = "B+"
+        if diem_tich_luy < 4.0:
+            diem_chu = "F"
+            status_canh_bao_final = "Nguy co"
+        else:
+            diem_chu = "B+"
+            status_canh_bao_final = "An toan"
     else: # tich_hop
         th = mock_record.get("diem_thuc_hanh_tich_hop")
         th_val = th if th is not None else 8.0
@@ -405,13 +424,20 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
         tk_lt_avg = sum(tk_lt_list) / len(tk_lt_list) if tk_lt_list else 8.0
         gk_lt = mock_record.get("diem_giua_ky_lt")
         gk_lt_val = gk_lt if gk_lt is not None else 8.0
-        lt_val = 0.2 * tk_lt_avg + 0.3 * gk_lt_val
+        ck = mock_record.get("diem_cuoi_ky")
+        ck_val = ck if ck is not None else 8.0
+        lt_val = 0.2 * tk_lt_avg + 0.3 * gk_lt_val + 0.5 * ck_val
         chi_lt = mock_record.get("so_chi_lt", 2)
         chi_th = mock_record.get("so_chi_th", 1)
         diem_tich_luy = round((lt_val * chi_lt + th_val * chi_th) / (chi_lt + chi_th), 2)
         diem_trung_binh_th = round(th_val, 2)
-        diem_chu = "B+"
-
+        if th_val < 3.0 or ck_val < 3.0 or diem_tich_luy < 4.0:
+            diem_chu = "F"
+            status_canh_bao_final = "Nguy co"
+        else:
+            diem_chu = "B+"
+            status_canh_bao_final = "An toan"
+ 
     return (diem_tich_luy, loai_hp, tong_so_chi, diem_trung_binh_th, diem_chu, status_canh_bao_final)
 
 
@@ -514,6 +540,11 @@ def save_uploaded_scores_mock(rows: List[Dict[str, Any]]) -> int:
         logger.info(f"Đã cập nhật {saved_count} bản ghi vào Mock Delta Gold Table.")
 
     sync_gold_to_silver()
+    try:
+        from app.db.persistence import save_db_to_disk
+        save_db_to_disk()
+    except Exception as e:
+        logger.error(f"Loi khi sao luu database: {e}")
     return saved_count
 
 def sync_gold_to_silver() -> None:
@@ -612,6 +643,89 @@ def query_course_grades_from_cloud(ma_mon: str) -> Optional[List[Dict[str, Any]]
     except Exception as e:
         logger.error(f"Lỗi truy vấn điểm môn {ma_mon} từ Databricks: {e}")
         return None
+
+
+def update_grades_in_cloud(
+    student_id: str,
+    ma_mon: str,
+    diem_thong_thuong: Optional[List[float]] = None,
+    diem_giua_ky: Optional[float] = None,
+    diem_cuoi_ky: Optional[float] = None,
+    diem_thuc_hanh_hien_tai: Optional[List[float]] = None,
+    qt_10: Optional[float] = None,
+    diem_tong_ket: Optional[float] = None,
+    diem_chu: Optional[str] = None,
+    diem_he_4: Optional[float] = None,
+    status_canh_bao_final: Optional[str] = None,
+) -> bool:
+    """
+    Cập nhật điểm sinh viên trực tiếp trên Databricks SQL Warehouse (bảng silver_diem_sinh_vien và gold_diem_sinh_vien).
+    """
+    server_hostname, http_path, access_token = _databricks_connection_settings()
+    catalog = os.getenv("DATABRICKS_CATALOG") or settings.DATABRICKS_CATALOG or "workspace"
+    schema = os.getenv("DATABRICKS_SCHEMA") or settings.DATABRICKS_SCHEMA or "smartgpa_db"
+
+    if not (server_hostname and http_path and access_token):
+        return False
+
+    try:
+        from databricks import sql
+        logger.info(f"Kết nối tới Databricks (update_grades_in_cloud): {server_hostname}...")
+        
+        tx1 = diem_thong_thuong[0] if diem_thong_thuong and len(diem_thong_thuong) > 0 else None
+        tx2 = diem_thong_thuong[1] if diem_thong_thuong and len(diem_thong_thuong) > 1 else None
+        
+        th1 = diem_thuc_hanh_hien_tai[0] if diem_thuc_hanh_hien_tai and len(diem_thuc_hanh_hien_tai) > 0 else None
+        th2 = diem_thuc_hanh_hien_tai[1] if diem_thuc_hanh_hien_tai and len(diem_thuc_hanh_hien_tai) > 1 else None
+        th3 = diem_thuc_hanh_hien_tai[2] if diem_thuc_hanh_hien_tai and len(diem_thuc_hanh_hien_tai) > 2 else None
+
+        # Calculate average TH
+        th_avg = sum(diem_thuc_hanh_hien_tai) / len(diem_thuc_hanh_hien_tai) if diem_thuc_hanh_hien_tai else 0.0
+
+        with sql.connect(
+            server_hostname=server_hostname.replace("https://", ""),
+            http_path=http_path,
+            access_token=access_token
+        ) as connection:
+            with connection.cursor() as cursor:
+                # 1. Update silver_diem_sinh_vien
+                query_silver = f"""
+                    UPDATE {catalog}.{schema}.silver_diem_sinh_vien
+                    SET 
+                        thuong_xuyen_1 = ?,
+                        thuong_xuyen_2 = ?,
+                        giua_ky = ?,
+                        thuc_hanh_1 = ?,
+                        thuc_hanh_2 = ?,
+                        thuc_hanh_3 = ?,
+                        diem_cuoi_ky = ?,
+                        qt_10 = ?
+                    WHERE student_id = ? AND ma_mon = ?
+                """
+                cursor.execute(query_silver, (tx1, tx2, diem_giua_ky, th1, th2, th3, diem_cuoi_ky, qt_10, student_id, ma_mon))
+                logger.info(f"Đã cập nhật thành công silver_diem_sinh_vien cho SV {student_id} môn {ma_mon}")
+
+                # 2. Update gold_diem_sinh_vien (nếu tồn tại)
+                try:
+                    query_gold = f"""
+                        UPDATE {catalog}.{schema}.gold_diem_sinh_vien
+                        SET 
+                            diem_tich_luy_hien_tai = ?,
+                            diem_trung_binh_thuc_hanh = ?,
+                            diem_chu_hien_tai = ?,
+                            status_canh_bao_final = ?
+                        WHERE student_id = ? AND ma_mon = ?
+                    """
+                    cursor.execute(query_gold, (diem_tong_ket, th_avg, diem_chu, status_canh_bao_final, student_id, ma_mon))
+                    logger.info(f"Đã cập nhật thành công gold_diem_sinh_vien cho SV {student_id} môn {ma_mon}")
+                except Exception as gold_err:
+                    logger.warning(f"Không thể cập nhật gold_diem_sinh_vien (có thể bảng chưa được sinh): {gold_err}")
+                
+                return True
+    except Exception as e:
+        logger.error(f"Lỗi khi cập nhật điểm trên Databricks: {e}", exc_info=True)
+        return False
+
 
 
 

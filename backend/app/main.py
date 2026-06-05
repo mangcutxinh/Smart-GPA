@@ -4,14 +4,89 @@ Module: feature/auth-gateway + feature/simulation-engine
 Author: Chan (SOA Backend Architect)
 # Force reload for CSV database update: 2026-06-05
 """
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+
+logger = logging.getLogger("smartgpa.main")
+
+
+async def _auto_save_loop():
+    """Background task: tự động lưu DB xuống đĩa mỗi 5 phút."""
+    from app.db.persistence import save_db_to_disk
+    while True:
+        await asyncio.sleep(300)  # 5 phút
+        try:
+            success = save_db_to_disk()
+            if success:
+                logger.info("Auto-save: DB đã được lưu tự động.")
+        except Exception as e:
+            logger.error(f"Auto-save thất bại: {e}")
+
+
+async def _keepalive_loop():
+    """Self-ping mỗi 14 phút để Render Free tier không bị sleep.
+    Chỉ chạy khi có biến môi trường RENDER (tức là đang chạy trên Render.com).
+    """
+    import os
+    import httpx
+
+    # Lấy URL public từ env RENDER_EXTERNAL_URL hoặc tự xây dựng
+    base_url = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
+    if not base_url:
+        logger.info("Keepalive: Không tìm thấy RENDER_EXTERNAL_URL, bỏ qua self-ping.")
+        return
+
+    ping_url = f"{base_url}/health"
+    logger.info(f"Keepalive: Bắt đầu self-ping mỗi 14 phút → {ping_url}")
+
+    await asyncio.sleep(60)  # Đợi 60s để app khởi động xong hoàn toàn
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(ping_url)
+                logger.info(f"Keepalive ping: {resp.status_code} ← {ping_url}")
+        except Exception as e:
+            logger.warning(f"Keepalive ping thất bại: {e}")
+        await asyncio.sleep(840)  # 14 phút (Render sleep sau 15 phút)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ─── STARTUP ─────────────────────────────────────────────────
+    from app.db.persistence import load_db_from_disk
+    loaded = load_db_from_disk()
+    if loaded:
+        logger.info("Startup: Đã khôi phục dữ liệu từ file backup.")
+    else:
+        logger.info("Startup: Không có backup, dùng dữ liệu seed mặc định.")
+
+    # Chạy background auto-save
+    save_task = asyncio.create_task(_auto_save_loop())
+
+    # Chạy self-ping keepalive (chỉ hoạt động khi deploy trên Render)
+    keepalive_task = asyncio.create_task(_keepalive_loop())
+
+    yield  # ← App đang chạy
+
+    # ─── SHUTDOWN ────────────────────────────────────────────────
+    save_task.cancel()
+    keepalive_task.cancel()
+    from app.db.persistence import save_db_to_disk
+    save_db_to_disk()
+    logger.info("Shutdown: Đã lưu DB lần cuối trước khi tắt.")
+
+
 from app.routers import auth, simulation, upload, admin, lecturer
 
 # ─── App instance ─────────────────────────────────────────────
 app = FastAPI(
+    lifespan=lifespan,
     title="SmartGPA API",
     description="""
 ## SmartGPA – Hệ thống Phân tích Học thuật & Giả lập Điểm Mục tiêu

@@ -9,8 +9,29 @@ frontend/dist/
 # Test grade files and templates (local testing only)
 /DHKHDL19A_grades/
 /DHKHDL19B_grades/
+/DHKHDL19A_B_grades/
 /DHKHDL19A_grades.zip
 /DHKHDL19B_grades.zip
+/DHKHDL19A_B_grades.zip
 /bang_diem_DHKHDL19A_NhapMonKHDL_v3.xlsx
 /databricks-code-template.md
 /replace_emojis.py
+
+# Proposal and test directories
+/proposal.md
+/test/
+
+# Backend test and debug scripts
+backend/test_sim.py
+backend/search_bug.py
+backend/generate_combined_templates.py
+backend/print_student_grades.py
+backend/query_all_databricks_predictions.py
+backend/query_databricks.py
+backend/tests/
+backend/.pytest_cache/
+backend/pytest.ini
+
+# Node modules
+node_modules/
+frontend/node_modules/

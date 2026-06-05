@@ -17,7 +17,13 @@ from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
 from app.core.dependencies import require_role
 from app.models.schemas import UserOut, UserRole
 from app.db.databricks_db import save_uploaded_scores_mock
-from app.services.databricks_jobs import DatabricksPipelineError, upload_and_run_pipeline, upload_and_trigger_pipeline
+from app.services.databricks_jobs import (
+    DatabricksPipelineError, 
+    upload_and_run_pipeline, 
+    upload_and_trigger_pipeline,
+    get_run_output,
+    download_workspace_file
+)
 
 router = APIRouter(prefix="/upload", tags=["Upload Hub"])
 logger = logging.getLogger("smartgpa.upload")
@@ -613,6 +619,13 @@ async def upload_file(
             safe_print(f"Hệ thống SmartGPA")
             safe_print(f"=========================================================================\n")
 
+    # Lưu DB ngay sau khi upload thành công
+    try:
+        from app.db.persistence import save_db_to_disk
+        save_db_to_disk()
+    except Exception:
+        pass
+
     return {
         "message": "Upload thành công và đang khởi chạy Databricks pipeline.",
         "filename": unique_filename,
@@ -638,7 +651,87 @@ def get_pipeline_status(
 ) -> dict:
     try:
         from app.services.databricks_jobs import check_run_status
-        return check_run_status(run_id)
+        status_res = check_run_status(run_id)
+        
+        if status_res.get("status") == "SUCCESS":
+            # Đồng bộ kết quả đã làm sạch từ file CSV trên Databricks về database local
+            try:
+                import json
+                import csv
+                import io
+                from app.services.databricks_jobs import get_run_output, download_workspace_file
+                from app.db.databricks_db import MOCK_GOLD_DB, sync_gold_to_silver
+                
+                run_output = get_run_output(run_id)
+                result_str = run_output.get("notebook_output", {}).get("result")
+                if result_str:
+                    output_data = json.loads(result_str)
+                    processed_csv_path = output_data.get("processed_csv_path")
+                    if processed_csv_path:
+                        csv_content = download_workspace_file(processed_csv_path)
+                        
+                        f = io.StringIO(csv_content.decode('utf-8', errors='replace'))
+                        reader = csv.DictReader(f)
+                        rows = list(reader)
+                        
+                        synced_count = 0
+                        for row in rows:
+                            student_id = row.get("student_id")
+                            ma_mon = row.get("ma_mon")
+                            if not student_id or not ma_mon:
+                                continue
+                                
+                            def to_float(v):
+                                if v is None or v.strip() == "" or v.strip().lower() == "null" or v.strip().lower() == "none":
+                                    return None
+                                try:
+                                    return float(v.strip())
+                                except ValueError:
+                                    return None
+                                
+                            def to_float_list(v):
+                                if v is None or v.strip() == "" or v.strip().lower() == "null" or v.strip().lower() == "none":
+                                    return []
+                                return [float(x) for x in v.split(";") if x.strip() != ""]
+
+                            mock_record = {
+                                "student_id": student_id,
+                                "student_name": row.get("student_name") or row.get("ho_ten") or "",
+                                "ma_mon": ma_mon,
+                                "ten_mon": row.get("ten_mon") or "",
+                                "ma_lop_hoc_phan": row.get("ma_lop_hoc_phan") or "",
+                                "diem_tong_ket": to_float(row.get("diem_tong_ket")) or to_float(row.get("diem_tich_luy_hien_tai")),
+                                "diem_chu": row.get("diem_chu") or row.get("diem_chu_hien_tai") or "F",
+                                "diem_he_4": to_float(row.get("diem_he_4")) or 0.0,
+                                "ket_qua": row.get("ket_qua") or ("Dat" if (row.get("diem_chu_hien_tai") or "F") != "F" else "Khong dat"),
+                                "diem_thong_thuong": to_float_list(row.get("diem_thong_thuong")),
+                                "diem_giua_ky": to_float(row.get("diem_giua_ky")),
+                                "diem_cuoi_ky": to_float(row.get("diem_cuoi_ky")),
+                                "loai_hoc_phan": row.get("loai_hoc_phan") or "ly_thuyet",
+                                "so_chi_lt": int(to_float(row.get("so_chi_lt")) or 2),
+                                "so_chi_th": int(to_float(row.get("so_chi_th")) or 0),
+                                "tong_so_chi": int(to_float(row.get("tong_so_chi")) or 2),
+                                "diem_thuc_hanh_hien_tai": to_float_list(row.get("diem_thuc_hanh_hien_tai")),
+                                "diem_thuc_hanh_tich_hop": to_float(row.get("diem_thuc_hanh_tich_hop")),
+                                "diem_thuong_ky_lt_list": to_float_list(row.get("diem_thuong_ky_lt_list")),
+                                "diem_giua_ky_lt": to_float(row.get("diem_giua_ky_lt")),
+                                "status_canh_bao": "Nguy co" if "CANH BAO" in (row.get("status_canh_bao_final") or "") or "Nguy co" in (row.get("status_canh_bao_final") or "") else "An toan"
+                            }
+                            
+                            MOCK_GOLD_DB[(student_id, ma_mon)] = mock_record
+                            synced_count += 1
+                        
+                        sync_gold_to_silver()
+                        try:
+                            from app.db.persistence import save_db_to_disk
+                            save_db_to_disk()
+                        except Exception as save_err:
+                            logger.error(f"Lỗi khi lưu database: {save_err}")
+                        logger.info(f"Đã đồng bộ thành công {synced_count} dòng dữ liệu từ Databricks CSV về local database.")
+            except Exception as sync_err:
+                logger.error(f"Lỗi khi đồng bộ kết quả Databricks CSV về DB local: {sync_err}", exc_info=True)
+                
+        return status_res
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -838,6 +931,13 @@ def edit_grade(
         safe_print(f"Hệ thống SmartGPA")
         safe_print(f"=========================================================================\n")
     
+    # Lưu DB ngay sau khi cập nhật điểm
+    try:
+        from app.db.persistence import save_db_to_disk
+        save_db_to_disk()
+    except Exception:
+        pass
+
     return {
         "message": f"Cập nhật điểm thành công cho SV {student_id} môn {ma_mon}.",
         "updated_fields": updated_list,
