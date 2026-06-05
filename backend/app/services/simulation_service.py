@@ -28,10 +28,10 @@ SCORE_MAPPING: list[dict] = [
     {"diem_chu": "A",  "diem_10_min": 8.5, "diem_10_max":  8.9, "diem_he_4": 4.0, "loai_danh_gia": "Đạt"},
     {"diem_chu": "B+", "diem_10_min": 8.0, "diem_10_max":  8.4, "diem_he_4": 3.5, "loai_danh_gia": "Đạt"},
     {"diem_chu": "B",  "diem_10_min": 7.0, "diem_10_max":  7.9, "diem_he_4": 3.0, "loai_danh_gia": "Đạt"},
-    {"diem_chu": "C+", "diem_10_min": 6.0, "diem_10_max":  6.9, "diem_he_4": 2.5, "loai_danh_gia": "Đạt"}, # Updated
-    {"diem_chu": "C",  "diem_10_min": 5.5, "diem_10_max":  5.9, "diem_he_4": 2.0, "loai_danh_gia": "Đạt"}, # Updated
-    {"diem_chu": "D+", "diem_10_min": 5.0, "diem_10_max":  5.4, "diem_he_4": 1.5, "loai_danh_gia": "Không Đạt"}, # Updated: GPA <= 1.50 -> Fail
-    {"diem_chu": "D",  "diem_10_min": 4.0, "diem_10_max":  4.9, "diem_he_4": 1.0, "loai_danh_gia": "Không Đạt"}, # Updated: GPA <= 1.50 -> Fail
+    {"diem_chu": "C+", "diem_10_min": 6.0, "diem_10_max":  6.9, "diem_he_4": 2.5, "loai_danh_gia": "Đạt"},
+    {"diem_chu": "C",  "diem_10_min": 5.5, "diem_10_max":  5.9, "diem_he_4": 2.0, "loai_danh_gia": "Đạt"},
+    {"diem_chu": "D+", "diem_10_min": 5.0, "diem_10_max":  5.4, "diem_he_4": 1.5, "loai_danh_gia": "Đạt"},
+    {"diem_chu": "D",  "diem_10_min": 4.0, "diem_10_max":  4.9, "diem_he_4": 1.0, "loai_danh_gia": "Đạt"},
     {"diem_chu": "F",  "diem_10_min": 0.0, "diem_10_max":  3.9, "diem_he_4": 0.0, "loai_danh_gia": "Không Đạt"},
 ]
 
@@ -74,9 +74,9 @@ def _build_guaranteed(
         loai_hoc_phan=loai,
         muc_tieu=muc_tieu,
         diem_muc_tieu_nguong=threshold,
-        diem_can_dat=3.1,
+        diem_can_dat=3.0,
         is_kha_thi=True,
-        message=f"Tuyệt vời! Điểm số hiện tại của bạn đã chắc chắn đạt được mục tiêu điểm {muc_tieu} (yêu cầu ≥{threshold}). Tuy nhiên, bạn vẫn cần đạt tối thiểu 3.1 điểm thi cuối kỳ (bắt buộc >3.0) để qua môn!",
+        message=f"Tuyệt vời! Điểm số hiện tại của bạn đã chắc chắn đạt được mục tiêu điểm {muc_tieu} (yêu cầu ≥{threshold}). Tuy nhiên, bạn vẫn cần đạt tối thiểu 3.0 điểm thi cuối kỳ (bắt buộc ≥3.0) để qua môn!",
         chi_tiet=chi_tiet,
     )
 
@@ -118,7 +118,7 @@ def _simulate_ly_thuyet(req: SimulationRequest, threshold: float) -> SimulationR
             diem_muc_tieu_nguong=threshold,
             diem_can_dat=None,
             is_kha_thi=False,
-            message=f"Mục tiêu điểm {req.muc_tieu.value} không đủ điều kiện qua môn (yêu cầu GPA phải > 1.50).",
+            message=f"Mục tiêu điểm {req.muc_tieu.value} không đủ điều kiện qua môn (yêu cầu phải Đạt).",
             chi_tiet={},
         )
 
@@ -190,8 +190,8 @@ def _simulate_ly_thuyet(req: SimulationRequest, threshold: float) -> SimulationR
     if ck_needed > 10.0:
         return _build_infeasible(loai_str, req.muc_tieu.value, threshold, ck_raw, chi_tiet)
 
-    # Điểm thi cuối kỳ bắt buộc > 3.0 (tối thiểu là 3.1)
-    if ck_needed < 3.1:
+    # Điểm thi cuối kỳ bắt buộc >= 3.0 (tối thiểu là 3.0)
+    if ck_needed < 3.0:
         return _build_guaranteed(loai_str, req.muc_tieu.value, threshold, chi_tiet)
 
     return SimulationResult(
@@ -202,7 +202,7 @@ def _simulate_ly_thuyet(req: SimulationRequest, threshold: float) -> SimulationR
         is_kha_thi=True,
         message=(
             f"Chúc bạn cố gắng học tốt! Bạn cần đạt tối thiểu {ck_needed} điểm thi cuối kỳ "
-            f"để hoàn thành mục tiêu đạt điểm chữ {req.muc_tieu.value} (yêu cầu tổng điểm ≥{threshold} và thi cuối kỳ >3.0). Hãy tự tin ôn tập nhé!"
+            f"để hoàn thành mục tiêu đạt điểm chữ {req.muc_tieu.value} (yêu cầu tổng điểm ≥{threshold} và thi cuối kỳ ≥3.0). Hãy tự tin ôn tập nhé!"
         ),
         chi_tiet=chi_tiet,
     )
@@ -357,7 +357,7 @@ def _simulate_tich_hop(req: SimulationRequest, threshold: float) -> SimulationRe
             diem_muc_tieu_nguong=threshold,
             diem_can_dat=None,
             is_kha_thi=False,
-            message=f"Mục tiêu điểm {req.muc_tieu.value} không đủ điều kiện qua môn (yêu cầu GPA phải > 1.50).",
+            message=f"Mục tiêu điểm {req.muc_tieu.value} không đủ điều kiện qua môn (yêu cầu phải Đạt).",
             chi_tiet={},
         )
 
@@ -448,9 +448,9 @@ def _simulate_tich_hop(req: SimulationRequest, threshold: float) -> SimulationRe
                 chi_tiet=chi_tiet_base,
             )
 
-        # Cập nhật điều kiện bắt buộc ck_lt_needed > 3.0 (tối thiểu 3.1)
-        if ck_lt_needed < 3.1:
-            ck_lt_needed = 3.1
+        # Cập nhật điều kiện bắt buộc ck_lt_needed >= 3.0 (tối thiểu 3.0)
+        if ck_lt_needed < 3.0:
+            ck_lt_needed = 3.0
 
         chi_tiet_base.update({
             "diem_thuong_ky_lt_trung_binh": round(dtb_tk_lt, 2),
@@ -471,7 +471,7 @@ def _simulate_tich_hop(req: SimulationRequest, threshold: float) -> SimulationRe
             diem_muc_tieu_nguong=threshold,
             diem_can_dat=ck_lt_needed,
             is_kha_thi=True,
-            message=f"Chúc bạn học tốt và cố gắng! " + base_message + f". Trong đó, điểm thi lý thuyết cuối kỳ cần đạt tối thiểu {ck_lt_needed} (yêu cầu >3.0).",
+            message=f"Chúc bạn học tốt và cố gắng! " + base_message + f". Trong đó, điểm thi lý thuyết cuối kỳ cần đạt tối thiểu {ck_lt_needed} (yêu cầu ≥3.0).",
             chi_tiet=chi_tiet_base,
         )
 

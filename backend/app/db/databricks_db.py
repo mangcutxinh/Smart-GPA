@@ -337,7 +337,7 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
                             
                             if loai_hp in ("thuc_hanh", "tich_hop") and diem_trung_binh_th < 3.0:
                                 diem_chu = "F"
-                            elif ck_val is not None and ck_val <= 3.0:
+                            elif ck_val is not None and ck_val < 3.0:
                                 diem_chu = "F"
                             elif qt_val >= 9.0:
                                 diem_chu = "A+"
@@ -351,15 +351,19 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
                                 diem_chu = "C+"
                             elif qt_val >= 5.5:
                                 diem_chu = "C"
+                            elif qt_val >= 5.0:
+                                diem_chu = "D+"
+                            elif qt_val >= 4.0:
+                                diem_chu = "D"
                             else:
                                 diem_chu = "F"
                             
                             # Tính status_canh_bao_final
                             if loai_hp in ("thuc_hanh", "tich_hop") and diem_trung_binh_th < 3.0:
                                 status_canh_bao_final = "CANH BAO: LIET THUC HANH (ROT MON)"
-                            elif ck_val is not None and ck_val <= 3.0:
+                            elif ck_val is not None and ck_val < 3.0:
                                 status_canh_bao_final = "CANH BAO: LIET THI CUOI KY (ROT MON)"
-                            elif qt_val < 5.5:
+                            elif qt_val < 4.0:
                                 status_canh_bao_final = "Nguy co rot mon"
                             else:
                                 status_canh_bao_final = "An toan"
@@ -396,7 +400,7 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
         ck_val = ck if ck is not None else 8.0
         diem_tich_luy = round(0.2 * tk_avg + 0.3 * gk_val + 0.5 * ck_val, 2)
         diem_trung_binh_th = 0.0
-        if ck_val <= 3.0 or diem_tich_luy < 5.5:
+        if ck_val < 3.0 or diem_tich_luy < 4.0:
             diem_chu = "F"
             status_canh_bao_final = "Nguy co"
         else:
@@ -407,7 +411,7 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
         th_avg = sum(th_list) / len(th_list) if th_list else 8.0
         diem_tich_luy = round(th_avg, 2)
         diem_trung_binh_th = round(th_avg, 2)
-        if diem_tich_luy < 5.5:
+        if diem_tich_luy < 4.0:
             diem_chu = "F"
             status_canh_bao_final = "Nguy co"
         else:
@@ -427,7 +431,7 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
         chi_th = mock_record.get("so_chi_th", 1)
         diem_tich_luy = round((lt_val * chi_lt + th_val * chi_th) / (chi_lt + chi_th), 2)
         diem_trung_binh_th = round(th_val, 2)
-        if th_val < 3.0 or ck_val <= 3.0 or diem_tich_luy < 5.5:
+        if th_val < 3.0 or ck_val < 3.0 or diem_tich_luy < 4.0:
             diem_chu = "F"
             status_canh_bao_final = "Nguy co"
         else:

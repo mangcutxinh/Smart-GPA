@@ -117,7 +117,7 @@ class TestTC05LyThuyet:
         assert data["is_kha_thi"] is False
 
     def test_tc05_guaranteed_when_already_passing(self):
-        """Điểm TK + GK đã đủ → is_kha_thi True, diem_can_dat = 3.1 (do quy chế CK > 3.0)"""
+        """Điểm TK + GK đã đủ → is_kha_thi True, diem_can_dat = 3.0 (do quy chế CK >= 3.0)"""
         resp = _simulate({
             "loai_hoc_phan": "ly_thuyet",
             "muc_tieu": "C",          # Ngưỡng C = 5.5
@@ -127,10 +127,10 @@ class TestTC05LyThuyet:
         })
         data = resp.json()
         assert data["is_kha_thi"] is True
-        assert data["diem_can_dat"] == 3.1
+        assert data["diem_can_dat"] == 3.0
 
-    def test_tc05_failing_target_gpa(self):
-        """Mục tiêu D+ hoặc D (GPA <= 1.50) → is_kha_thi = False"""
+    def test_tc05_passing_target_gpa_d_d_plus(self):
+        """Mục tiêu D+ hoặc D (GPA >= 1.0) là khả thi và có điểm thi cần đạt tối thiểu 3.0"""
         for target in ["D", "D+"]:
             resp = _simulate({
                 "loai_hoc_phan": "ly_thuyet",
@@ -140,21 +140,21 @@ class TestTC05LyThuyet:
                 "diem_giua_ky": 7.0,
             })
             data = resp.json()
-            assert data["is_kha_thi"] is False
-            assert "không đủ điều kiện qua môn" in data["message"]
+            assert data["is_kha_thi"] is True
+            assert data["diem_can_dat"] == 3.0
 
-    def test_tc05_ck_cap_at_3_1(self):
-        """Điểm thi cần đạt dưới 3.1 → Cắt ở 3.1"""
+    def test_tc05_ck_cap_at_3_0(self):
+        """Điểm thi cần đạt dưới 3.0 → Cắt ở 3.0"""
         resp = _simulate({
             "loai_hoc_phan": "ly_thuyet",
             "muc_tieu": "C",          # Ngưỡng C = 5.5
             "so_tin_chi": 2,
-            "diem_thuong_ky_list": [8.0, 8.0],
-            "diem_giua_ky": 8.0,
+            "diem_thuong_ky_list": [8.5, 8.5],
+            "diem_giua_ky": 8.5,
         })
         data = resp.json()
         assert data["is_kha_thi"] is True
-        assert data["diem_can_dat"] == 3.1
+        assert data["diem_can_dat"] == 3.0
 
 
 # ─────────────────────────────────────────────────────────────
