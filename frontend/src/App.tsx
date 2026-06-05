@@ -40,7 +40,7 @@ interface AdminOverview {
   latest_updates?: Array<Record<string, any>>;
 }
 
-const API_BASE = "http://localhost:8001";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8001";
 const TARGETS: TargetGrade[] = ["D", "D+", "C", "C+", "B", "B+", "A", "A+"];
 
 const SAMPLE_CSV = `student_id,ma_mon,ma_lop_hoc_phan,loai_hoc_phan,diem_thong_thuong,diem_giua_ky,diem_thuc_hanh_hien_tai,diem_thuc_hanh_tich_hop,diem_thuong_ky_lt_list,diem_giua_ky_lt
@@ -1403,7 +1403,6 @@ export default function App() {
             <div className="blob blob-2"></div>
             <div className="hero-perspective">
               <div className="hero-card-3d floating-slow">
-                <div className="badge badge-info mb-4">Môi trường LMS thế hệ mới</div>
                 <h1 className="hero-title">
                   Hệ thống Phân tích & Giả lập<br />
                   <span className="gradient-text">Điểm số GPA Thông minh</span>

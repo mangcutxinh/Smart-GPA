@@ -4,7 +4,7 @@ _Hệ thống phân tích học thuật, giả lập điểm mục tiêu và d�
 
 ---
 
-## 📌 Giới thiệu
+## Giới thiệu
 
 **SmartGPA** là hệ thống hỗ trợ sinh viên và nhà trường trong việc:
 - Giả lập lộ trình điểm số, xác định số điểm thành phần cần đạt để tới được các mốc GPA hoặc điểm chữ mong muốn.
@@ -16,7 +16,7 @@ Dự án triển khai trên nền tảng đám mây **Databricks**, áp dụng c
 
 ---
 
-## 🏗️ Kiến trúc tổng thể
+## Kiến trúc tổng thể
 
 - **Cloud & Data Intelligence (Databricks):** Lưu trữ, xử lý điểm học tập, huấn luyện mô hình Machine Learning dự báo rớt môn và các báo cáo phân tích đa chiều.
 - **API Gateway & Logic Core (FastAPI):** Cung cấp các HTTP API cho các nghiệp vụ: giả lập tính điểm ngược, xác thực người dùng, phân quyền, kết nối tới Databricks.
@@ -24,7 +24,7 @@ Dự án triển khai trên nền tảng đám mây **Databricks**, áp dụng c
 
 ---
 
-## 🚀 Chức năng chính
+## Chức năng chính
 
 1. **Sinh viên:**
    - Chọn mục tiêu GPA/điểm chữ → Nhận khuyếns nghị số điểm thành phần cần đạt qua API mô phỏng real-time.
@@ -45,26 +45,46 @@ Dự án triển khai trên nền tảng đám mây **Databricks**, áp dụng c
 
 ---
 
-## 👩‍💻 Phân chia nhiệm vụ nhóm
+## Phân chia nhiệm vụ nhóm
 
 - **Data Engineer:** Thiết lập dữ liệu Delta Lake, xây dựng dịch vụ nạp và xử lý điểm (Data Ingestion Service).
 - **ML/Cloud Engineer:** Huấn luyện & deploy mô hình dự báo rớt môn, đóng gói thành Prediction Service chạy trên Databricks Serverless Endpoint.
-- **SOA Backend Architect (Leader):** Thiết kế kiến trúc dịch vụ, xây dựng API xác thực JWT 4 vai trò, tích hợp Simulation Engine tính điểm ngược, kết nối Databricks.
+- **SOA Backend Architect (Leader):** Thiết kế kiến trúc dịch vụ, xây dựng API xác thực JWT 3 vai trò, tích hợp Simulation Engine tính điểm ngược, kết nối Databricks.
 - **Frontend Developer:** Xây dựng giao diện Student/Lecturer/Admin Portal, thiết kế slide giả lập điểm tương tác real-time với API.
 - **QA / Data Analyst:** Viết test tự động với Pytest (Kiểm thử tích hợp), xây dựng dashboard báo cáo Databricks SQL phục vụ quản trị viên.
 
 ---
 
-## 🛠️ Công nghệ sử dụng
+## Công nghệ sử dụng
 
 - **Databricks Cloud Platform**: Nền tảng Delta Lake đám mây lưu trữ dữ liệu (Bronze - Silver - Gold), thực thi ETL PySpark, và phục vụ dự đoán nguy cơ rớt môn qua mô hình ML.
 - **FastAPI Backend Gateway**: Xây dựng API Gateway, tích hợp thuật toán giả lập tính ngược điểm thi (Simulation Engine), xác thực phân quyền JWT, kết nối Databricks SQL Warehouse và tự động fallback về Mock Database.
-- **ReactJS Frontend (Vite)**: Giao diện Client SPA cao cấp thiết kế theo phong cách Soft Glassmorphism, tone màu Vani ngọt ngào, tích hợp bảng điều khiển tương tác và đồ thị trực quan cho 4 vai trò.
+- **ReactJS Frontend (Vite)**: Giao diện Client SPA cao cấp thiết kế theo phong cách Soft Glassmorphism, tone màu Vani ngọt ngào, tích hợp bảng điều khiển tương tác và đồ thị trực quan cho 3 vai trò.
 - **Pytest**: Bộ kiểm thử tự động tích hợp, giả lập các tình huống kết nối, nạp file CSV, xác thực JWT và tính ngược điểm thi.
 
 ---
 
-## ⚡ Hướng dẫn triển khai (Demo / Development)
+## Hướng dẫn triển khai (Demo / Development)
+
+### Cách 1: Chạy cục bộ bằng Docker & Docker Compose (Khuyên dùng)
+Yêu cầu đã cài đặt Docker và Docker Compose trên máy của bạn.
+
+1. **Cấu hình môi trường:**
+   - Tạo file `backend/.env` (tham khảo `backend/.env.example`) và điền các thông tin cấu hình cần thiết.
+2. **Khởi chạy hệ thống:**
+   - Tại thư mục gốc của dự án, chạy lệnh:
+     ```bash
+     docker-compose up --build
+     ```
+   - Lệnh này sẽ tự động xây dựng các Docker image cho cả backend và frontend, sau đó khởi chạy:
+     - **Backend FastAPI**: chạy tại `http://localhost:8001`
+     - **Frontend Vite React (Nginx)**: chạy tại `http://localhost:5173`
+3. **Kiểm tra kết nối:**
+   - Mở trình duyệt và truy cập `http://localhost:5173` để sử dụng hệ thống.
+
+---
+
+### Cách 2: Chạy cục bộ thủ công (Manual)
 
 1. **Chuẩn bị môi trường Databricks**
    - Tạo máy chủ Databricks workspace.
@@ -102,7 +122,47 @@ Dự án triển khai trên nền tảng đám mây **Databricks**, áp dụng c
 
 ---
 
-## 👥 Danh sách tài khoản thử nghiệm (User Accounts)
+## Triển khai lên Production (Cloud Deployment)
+
+Hệ thống được cấu hình sẵn sàng để deploy Backend trên **Render** và Frontend trên **Vercel**.
+
+### 1. Triển khai Backend (FastAPI) trên Render
+Render hỗ trợ build và deploy ứng dụng trực tiếp từ Dockerfile:
+
+1. **Tạo Web Service mới:**
+   - Truy cập trang quản trị Render và chọn **New > Web Service**.
+   - Kết nối tới Github repository chứa mã nguồn dự án.
+2. **Cấu hình thông tin cơ bản:**
+   - **Name**: `smartgpa-backend` (hoặc tên bất kỳ).
+   - **Root Directory**: `backend` (phải chỉ định rõ thư mục này để Render tìm đúng Dockerfile).
+   - **Language**: `Docker`.
+3. **Cấu hình Environment Variables:**
+   - Chuyển sang tab **Environment** và click **Add Environment Variable** để thêm các cấu hình cần thiết:
+     - `SECRET_KEY`: Khóa bảo mật JWT của bạn (ví dụ: `mot-chuoi-bi-mat-kho-doan`).
+     - `CORS_ORIGINS`: Địa chỉ URL của Frontend sau khi deploy trên Vercel (ví dụ: `https://smart-gpa.vercel.app`).
+     - `DATABRICKS_HOST`, `DATABRICKS_SERVER_HOSTNAME`, `DATABRICKS_HTTP_PATH`, `DATABRICKS_TOKEN`, v.v. (các thông tin kết nối Databricks từ `.env`).
+4. **Deploy:**
+   - Click **Create Web Service**. Render sẽ tự động build image từ `backend/Dockerfile` và khởi chạy. 
+   - Render tự động truyền biến môi trường `$PORT` và Dockerfile của backend đã được thiết lập để lắng nghe theo cổng này.
+
+### 2. Triển khai Frontend (React Vite) trên Vercel
+Vercel được tối ưu hóa tốt nhất để lưu trữ các static asset của React/Vite:
+
+1. **Tạo Project mới:**
+   - Truy cập trang quản trị Vercel và chọn **Add New > Project**.
+   - Kết nối tới Github repository chứa mã nguồn dự án.
+2. **Cấu hình thông tin cơ bản:**
+   - **Root Directory**: Click chọn và trỏ đến thư mục `frontend`.
+   - **Framework Preset**: Chọn `Vite`.
+3. **Cấu hình Environment Variables:**
+   - Trong phần **Environment Variables**, thêm biến:
+     - `VITE_API_BASE`: Địa chỉ URL backend của bạn đã deploy trên Render (ví dụ: `https://smartgpa-backend.onrender.com`).
+4. **Deploy:**
+   - Click **Deploy**. Vercel sẽ tự động chạy lệnh build tĩnh (`npm run build`) và deploy lên CDN toàn cầu.
+
+---
+
+## Danh sách tài khoản thử nghiệm (User Accounts)
 
 Dưới đây là danh sách đầy đủ các tài khoản đã được nạp sẵn trong hệ thống phục vụ demo và kiểm thử:
 
@@ -131,7 +191,7 @@ Dưới đây là danh sách đầy đủ các tài khoản đã được nạp 
 
 ---
 
-## 📂 Dữ liệu Bảng điểm mẫu (Excel Grade Upload Templates)
+## Dữ liệu Bảng điểm mẫu (Excel Grade Upload Templates)
 
 Hệ thống đã tự động tạo sẵn và đóng gói bộ dữ liệu điểm của toàn bộ 39 môn học (từ học kỳ 1 đến học kỳ 9) cho cả hai lớp để kiểm thử và demo:
 1. **Lớp DHKHDL19A**:
@@ -151,7 +211,7 @@ Hệ thống đã tự động tạo sẵn và đóng gói bộ dữ liệu đi�
 
 ---
 
-## 💡 Hướng dẫn chi tiết sử dụng theo vai trò
+## Hướng dẫn chi tiết sử dụng theo vai trò
 
 ### 1. Đối với Sinh viên (Đăng nhập bằng MSSV + Mật khẩu `Sv@123`):
 - Vào trang **"Bảng điểm cá nhân"** để xem danh sách môn học đã học.
@@ -170,7 +230,7 @@ Hệ thống đã tự động tạo sẵn và đóng gói bộ dữ liệu đi�
 
 ---
 
-## 📑 Đóng góp & Liên hệ
+## Đóng góp & Liên hệ
 
 Vui lòng tạo [issue](https://github.com/mangcutxinh/Smart-GPA/issues) hoặc liên hệ trực tiếp nhóm phát triển nếu có góp ý hay nhu cầu hợp tác.
 

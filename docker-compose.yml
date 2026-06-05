@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/storage_mock:/app/storage_mock
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE=http://localhost:8001
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
