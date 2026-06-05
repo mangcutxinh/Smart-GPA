@@ -2143,10 +2143,10 @@ export default function App() {
               {studentWorkspaceTab === "curriculum" && (
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                    <h3 style={{ fontSize: 18, fontWeight: 700 }}>Chương trình khung - Khóa học KHDL 2023</h3>
+                    <h3 style={{ fontSize: 18, fontWeight: 700 }}>Chương trình đào tạo - Ngành Khoa học Dữ liệu</h3>
                     <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                       <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                        Tích lũy: <strong>{gpaStats.totalCredits}</strong>/{gpaStats.totalRegistered} TC · GPA: <strong style={{ color: "var(--color-primary)" }}>{gpaStats.gpa10}</strong>/10
+                        Tổng số tín chỉ chương trình: <strong style={{ color: "var(--color-primary)" }}>{gpaStats.totalRegistered}</strong> tín chỉ
                       </span>
                     </div>
                   </div>
@@ -2168,7 +2168,7 @@ export default function App() {
                             <div style={{ background: "var(--color-primary)", color: "#fff", borderRadius: 8, padding: "4px 14px", fontSize: 13, fontWeight: 700 }}>
                               Học kỳ {hk}
                             </div>
-                            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{hkCredits} TC · Đã qua {hkPassed} TC</span>
+                            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{hkCredits} tín chỉ</span>
                           </div>
                           <div style={{ overflowX: "auto" }}>
                             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -2177,16 +2177,12 @@ export default function App() {
                                   <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600 }}>Mã MH</th>
                                   <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600 }}>Tên môn học</th>
                                   <th style={{ padding: "8px 10px", textAlign: "center" }}>Loại</th>
-                                  <th style={{ padding: "8px 10px", textAlign: "center" }}>TC</th>
-                                  <th style={{ padding: "8px 10px", textAlign: "center" }}>ĐTK</th>
-                                  <th style={{ padding: "8px 10px", textAlign: "center" }}>Chữ</th>
-                                  <th style={{ padding: "8px 10px", textAlign: "center" }}>HỆ 4</th>
-                                  <th style={{ padding: "8px 10px", textAlign: "center" }}>Kết quả</th>
+                                  <th style={{ padding: "8px 10px", textAlign: "center" }}>Số tín chỉ</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {courses.map((c, ci) => (
-                                  <tr key={ci} style={{ borderTop: "1px solid var(--border-glass)", background: c.diem_tong_ket != null && c.diem_tong_ket < 4.0 ? "rgba(255,100,100,0.04)" : "transparent" }}>
+                                  <tr key={ci} style={{ borderTop: "1px solid var(--border-glass)" }}>
                                     <td style={{ padding: "7px 10px", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{c.ma_mon}</td>
                                     <td style={{ padding: "7px 10px", fontWeight: 600, color: "var(--text-primary)" }}>{c.ten_mon}</td>
                                     <td style={{ padding: "7px 10px", textAlign: "center" }}>
@@ -2195,32 +2191,13 @@ export default function App() {
                                       </span>
                                     </td>
                                     <td style={{ padding: "7px 10px", textAlign: "center", fontWeight: 700 }}>{c.tong_so_chi}</td>
-                                    <td style={{ padding: "7px 10px", textAlign: "center", fontWeight: 700, color: c.diem_tong_ket != null && c.diem_tong_ket < 4.0 ? "var(--color-danger)" : "var(--text-primary)" }}>
-                                      {c.diem_tong_ket != null ? c.diem_tong_ket : <span style={{ color: "var(--text-muted)" }}>CHƯA</span>}
-                                    </td>
-                                    <td style={{ padding: "7px 10px", textAlign: "center" }}>
-                                      <span className={`badge ${c.diem_chu === "F" ? "badge-danger" : c.diem_chu ? "badge-success" : ""}`} style={{ fontSize: 11, padding: "2px 8px" }}>
-                                        {c.diem_chu || "-"}
-                                      </span>
-                                    </td>
-                                    <td style={{ padding: "7px 10px", textAlign: "center" }}>{c.diem_he_4 != null ? c.diem_he_4 : "-"}</td>
-                                    <td style={{ padding: "7px 10px", textAlign: "center" }}>
-                                      {c.diem_tong_ket == null ? (
-                                        <span className="badge badge-info" style={{ fontSize: 10, padding: "2px 8px" }}>Đ ang học</span>
-                                      ) : c.diem_tong_ket >= 4.0 ? (
-                                        <span className="badge badge-success" style={{ fontSize: 10, padding: "2px 8px" }}>Đạt</span>
-                                      ) : (
-                                        <span className="badge badge-danger" style={{ fontSize: 10, padding: "2px 8px" }}>Không đạt</span>
-                                      )}
-                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
                               <tfoot>
                                 <tr style={{ background: "var(--bg-primary)", borderTop: "2px solid var(--border-glass)" }}>
                                   <td colSpan={3} style={{ padding: "8px 10px", fontWeight: 700, fontSize: 12 }}>TỔNG HK{hk}</td>
-                                  <td style={{ padding: "8px 10px", textAlign: "center", fontWeight: 700 }}>{hkCredits}</td>
-                                  <td colSpan={4} style={{ padding: "8px 10px", textAlign: "center", fontSize: 12, color: "var(--text-secondary)" }}>Đã qua {hkPassed}/{hkCredits} TC</td>
+                                  <td style={{ padding: "8px 10px", textAlign: "center", fontWeight: 700 }}>{hkCredits} TC</td>
                                 </tr>
                               </tfoot>
                             </table>
