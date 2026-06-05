@@ -1,68 +1,68 @@
 # PROJECT PROPOSAL
 
-# SMARTGPA - Academic Analytics & Grade Simulation Platform
+# SMARTGPA - Nền Tảng Phân Tích Học Tập Và Giả Lập Điểm
 
-## 1. Thong Tin Chung
+## 1. Thông Tin Chung
 
-### 1.1 Thanh vien nhom
+### 1.1 Thành Viên Nhóm
 
-| STT | Ho va ten | MSSV | Vai tro |
+| STT | Họ và tên | MSSV | Vai trò |
 | --- | --- | --- | --- |
-| 1 | Nguyen Thi Quynh Trang | 23676071 | Leader / SOA Backend Architect |
-| 2 | Vu Ngoc Thu Phuong | 23696981 | Data Engineer |
-| 3 | Phan Tran Thao Vy | 23670631 | ML / Cloud Engineer |
-| 4 | Ngo Phuoc Thien | 23670311 | Frontend Developer |
-| 5 | Truong The Hai Thinh | 23725051 | QA / Data Analyst |
+| 1 | Nguyễn Thị Quỳnh Trang | 23676071 | Leader / SOA Backend Architect |
+| 2 | Vũ Ngọc Thu Phương | 23696981 | Data Engineer |
+| 3 | Phan Trần Thảo Vy | 23670631 | ML / Cloud Engineer |
+| 4 | Ngô Phước Thiên | 23670311 | Frontend Developer |
+| 5 | Trương Thế Hải Thịnh | 23725051 | QA / Data Analyst |
 
 **Git Repository:** [https://github.com/mangcutxinh/Smart-GPA](https://github.com/mangcutxinh/Smart-GPA)
 
-### 1.2 Phan chia tac vu theo code hien tai
+### 1.2 Phân Chia Tác Vụ Theo Code Hiện Tại
 
-| Nhom tac vu | Module/file chinh | Nguoi phu trach | Ket qua hien tai |
+| Nhóm tác vụ | Module/file chính | Người phụ trách | Kết quả hiện tại |
 | --- | --- | --- | --- |
-| Auth Gateway, JWT, role guard | `backend/app/routers/auth.py`, `core/security.py`, `core/dependencies.py`, `services/auth_service.py` | Nguyen Thi Quynh Trang | Dang nhap, dang ky, refresh token, logout, `/auth/me`, OTP doi mat khau cho sinh vien. |
-| Simulation Engine tinh diem nguoc | `backend/app/routers/simulation.py`, `services/simulation_service.py`, `models/schemas.py` | Nguyen Thi Quynh Trang | Tinh diem can dat cho mon ly thuyet, thuc hanh, tich hop; tra bang quy doi diem; tich hop truy van bang diem theo MSSV. |
-| Data ingestion va Databricks pipeline | `backend/app/routers/upload.py`, `services/databricks_jobs.py`, `db/databricks_db.py` | Vu Ngoc Thu Phuong | Upload CSV/XLSX, parse mau bang diem IUH, validate diem 0-10, luu mock storage, dong bo mock Gold, upload file len Databricks Workspace va trigger Jobs API. |
-| ML risk prediction | `backend/app/services/ml_service.py`, `routers/simulation.py` | Phan Tran Thao Vy | Goi Databricks MLflow Serving neu co cau hinh; fallback local theo diem thuong ky/giua ky; cap API canh bao hoc vu. |
-| Admin management | `backend/app/routers/admin.py`, `db/real_db.py`, `db/databricks_db.py` | Nguyen Thi Quynh Trang, Truong The Hai Thinh | Quan ly hoc ky, mon hoc, phan cong giang vien, khoa/vien/nganh, sinh vien, giang vien, diem, lich su diem, canh bao, quy che cham diem. |
-| Lecturer portal API | `backend/app/routers/lecturer.py`, `routers/upload.py` | Ngo Phuoc Thien, Vu Ngoc Thu Phuong | Giang vien xem mon duoc phan cong, xem diem theo mon, sua/xoa diem, upload bang diem theo mon. |
-| Frontend React Vite | `frontend/src/App.tsx`, `frontend/src/App.css`, `frontend/src/index.css` | Ngo Phuoc Thien | SPA cho Student/Lecturer/Admin, tich hop API auth, simulation, upload, admin va lecturer. |
-| QA va tich hop | `backend/tests/*.py`, `backend/pytest.ini` | Truong The Hai Thinh | Test auth, simulation, data integration, unit test va luong tich hop backend. |
+| Auth Gateway, JWT, phân quyền | `backend/app/routers/auth.py`, `core/security.py`, `core/dependencies.py`, `services/auth_service.py` | Nguyễn Thị Quỳnh Trang | Đăng nhập, đăng ký, refresh token, logout, `/auth/me`, OTP đổi mật khẩu cho sinh viên. |
+| Simulation Engine tính điểm ngược | `backend/app/routers/simulation.py`, `services/simulation_service.py`, `models/schemas.py` | Nguyễn Thị Quỳnh Trang | Tính điểm cần đạt cho môn lý thuyết, thực hành, tích hợp; trả bảng quy đổi điểm; tích hợp tra cứu bảng điểm theo MSSV. |
+| Data ingestion và Databricks pipeline | `backend/app/routers/upload.py`, `services/databricks_jobs.py`, `db/databricks_db.py` | Vũ Ngọc Thu Phương | Upload CSV/XLSX, parse mẫu bảng điểm IUH, validate điểm 0-10, lưu mock storage, đồng bộ mock Gold, upload file lên Databricks Workspace và trigger Jobs API. |
+| ML risk prediction | `backend/app/services/ml_service.py`, `routers/simulation.py` | Phan Trần Thảo Vy | Gọi Databricks MLflow Serving nếu có cấu hình; fallback local theo điểm thường kỳ/giữa kỳ; cấp API cảnh báo học vụ. |
+| Admin management | `backend/app/routers/admin.py`, `db/real_db.py`, `db/databricks_db.py` | Nguyễn Thị Quỳnh Trang, Trương Thế Hải Thịnh | Quản lý học kỳ, môn học, phân công giảng viên, khoa/viện/ngành, sinh viên, giảng viên, điểm, lịch sử điểm, cảnh báo, quy chế chấm điểm. |
+| Lecturer portal API | `backend/app/routers/lecturer.py`, `routers/upload.py` | Ngô Phước Thiên, Vũ Ngọc Thu Phương | Giảng viên xem môn được phân công, xem điểm theo môn, sửa/xóa điểm, upload bảng điểm theo môn. |
+| Frontend React Vite | `frontend/src/App.tsx`, `frontend/src/App.css`, `frontend/src/index.css` | Ngô Phước Thiên | SPA cho Student/Lecturer/Admin, tích hợp API auth, simulation, upload, admin và lecturer. |
+| QA và tích hợp | `backend/tests/*.py`, `backend/pytest.ini` | Trương Thế Hải Thịnh | Test auth, simulation, data integration, unit test và luồng tích hợp backend. |
 
-> Ghi chu: `backend/app/routers/scores.py` dang ton tai trong repo nhung chua duoc include trong `backend/app/main.py`, vi vay khong duoc xem la API dang chay trong ban demo hien tai.
-
----
-
-## 2. Mo Ta Du An
-
-SmartGPA la he thong phan tich hoc tap, quan ly bang diem va gia lap diem muc tieu cho sinh vien. He thong cho phep sinh vien tra cuu diem, chon muc tieu diem chu va nhan diem cuoi ky/diem thanh phan can dat; giang vien upload va dieu chinh bang diem; admin quan ly hoc vu, mon hoc, phan cong, lich su diem va canh bao. Backend uu tien ket noi Databricks SQL/Jobs/MLflow khi co cau hinh, dong thoi co co che fallback local bang in-memory database de demo va test on dinh.
-
-Muc tieu chinh:
-
-- Xay dung ung dung web da vai tro: Student, Lecturer, Admin.
-- Cung cap API Gateway FastAPI gom cac router nghiep vu doc lap.
-- Chuan hoa luong upload CSV/XLSX bang diem, validate du lieu va trigger Databricks pipeline.
-- Tinh diem nguoc theo quy che cho mon ly thuyet, thuc hanh va tich hop.
-- Canh bao hoc vu bang logic diem hien tai ket hop MLflow Serving hoac fallback local.
-- Luu tru/demo du lieu tren in-memory store va tich hop Databricks Delta Lake khi co cau hinh.
+> Ghi chú: `backend/app/routers/scores.py` đang tồn tại trong repo nhưng chưa được include trong `backend/app/main.py`, vì vậy chưa được xem là API đang chạy trong bản demo hiện tại.
 
 ---
 
-## 3. Vai Tro Nguoi Dung
+## 2. Mô Tả Dự Án
 
-| Vai tro | Ten he thong | Quyen chinh theo code |
+SmartGPA là hệ thống phân tích học tập, quản lý bảng điểm và giả lập điểm mục tiêu cho sinh viên. Hệ thống cho phép sinh viên tra cứu điểm, chọn mục tiêu điểm chữ và nhận điểm cuối kỳ hoặc điểm thành phần cần đạt; giảng viên upload và điều chỉnh bảng điểm; admin quản lý học vụ, môn học, phân công, lịch sử điểm và cảnh báo. Backend ưu tiên kết nối Databricks SQL/Jobs/MLflow khi có cấu hình, đồng thời có cơ chế fallback local bằng in-memory database để demo và kiểm thử ổn định.
+
+Mục tiêu chính:
+
+- Xây dựng ứng dụng web đa vai trò: Student, Lecturer, Admin.
+- Cung cấp API Gateway FastAPI gồm các router nghiệp vụ độc lập.
+- Chuẩn hóa luồng upload CSV/XLSX bảng điểm, validate dữ liệu và trigger Databricks pipeline.
+- Tính điểm ngược theo quy chế cho môn lý thuyết, thực hành và tích hợp.
+- Cảnh báo học vụ bằng logic điểm hiện tại kết hợp MLflow Serving hoặc fallback local.
+- Lưu trữ/demo dữ liệu trên in-memory store và tích hợp Databricks Delta Lake khi có cấu hình.
+
+---
+
+## 3. Vai Trò Người Dùng
+
+| Vai trò | Tên hệ thống | Quyền chính theo code |
 | --- | --- | --- |
-| Sinh vien | Student | Dang nhap bang MSSV/email, xem diem ca nhan, chay gia lap diem muc tieu, xem thong bao in-app. |
-| Giang vien | Lecturer | Xem mon duoc phan cong, xem danh sach diem theo mon, upload CSV/XLSX, sua/xoa diem sinh vien trong mon phu trach. |
-| Quan tri vien | Admin | Quan ly tai khoan, hoc ky, mon hoc, phan cong, khoa/vien/nganh, bang diem, lich su diem, canh bao hoc vu va quy che cham diem. |
+| Sinh viên | Student | Đăng nhập bằng MSSV/email, xem điểm cá nhân, chạy giả lập điểm mục tiêu, xem thông báo in-app. |
+| Giảng viên | Lecturer | Xem môn được phân công, xem danh sách điểm theo môn, upload CSV/XLSX, sửa/xóa điểm sinh viên trong môn phụ trách. |
+| Quản trị viên | Admin | Quản lý tài khoản, học kỳ, môn học, phân công, khoa/viện/ngành, bảng điểm, lịch sử điểm, cảnh báo học vụ và quy chế chấm điểm. |
 
 ---
 
-## 4. Kien Truc Tong The
+## 4. Kiến Trúc Tổng Thể
 
-Code hien tai trien khai theo mo hinh FastAPI backend tap trung, tach logic theo router/service/database layer. Day la API Gateway + Logic Core, khong phai microservice tach process. Cac thanh phan duoc tach module de bao tri va co the tach service rieng trong tuong lai.
+Code hiện tại triển khai theo mô hình FastAPI backend tập trung, tách logic theo router/service/database layer. Đây là API Gateway + Logic Core, không phải microservice tách process. Các thành phần được tách module để dễ bảo trì và có thể tách service riêng trong tương lai.
 
-### 4.1 So do kien truc dang khoi
+### 4.1 Sơ Đồ Kiến Trúc Dạng Khối
 
 ```text
 Student / Lecturer / Admin
@@ -88,7 +88,7 @@ Database / Cloud Layer
           +-- MLflow Serving: risk prediction endpoint with local fallback
 ```
 
-### 4.2 So do kien truc Mermaid
+### 4.2 Sơ Đồ Kiến Trúc Mermaid
 
 ```mermaid
 flowchart TD
@@ -132,60 +132,60 @@ flowchart TD
     MLSvc --> ML
 ```
 
-### 4.3 Luong fallback du lieu
+### 4.3 Luồng Fallback Dữ Liệu
 
 ```mermaid
 flowchart LR
     API["API request"]
-    Check["Co cau hinh Databricks?"]
+    Check["Có cấu hình Databricks?"]
     Gold["Query Gold table"]
     Silver["Fallback query Silver table"]
     Mock["Fallback MOCK_GOLD_DB / MOCK_SILVER_DB"]
     Result["Response to frontend"]
 
     API --> Check
-    Check -- "Co" --> Gold
-    Gold -- "Thanh cong" --> Result
-    Gold -- "Loi/khong co bang" --> Silver
-    Silver -- "Thanh cong" --> Result
-    Silver -- "Loi/khong co du lieu" --> Mock
-    Check -- "Khong" --> Mock
+    Check -- "Có" --> Gold
+    Gold -- "Thành công" --> Result
+    Gold -- "Lỗi/không có bảng" --> Silver
+    Silver -- "Thành công" --> Result
+    Silver -- "Lỗi/không có dữ liệu" --> Mock
+    Check -- "Không" --> Mock
     Mock --> Result
 ```
 
 ---
 
-## 5. Thanh Phan He Thong
+## 5. Thành Phần Hệ Thống
 
 ### 5.1 Frontend
 
-Frontend la React Vite SPA, hien thuc cac portal cho sinh vien, giang vien va admin. Ung dung goi API FastAPI de dang nhap, tra cuu diem, chay simulation, upload file, quan ly mon hoc, quan ly canh bao va hien thi thong bao.
+Frontend là React Vite SPA, hiện thực các portal cho sinh viên, giảng viên và admin. Ứng dụng gọi API FastAPI để đăng nhập, tra cứu điểm, chạy simulation, upload file, quản lý môn học, quản lý cảnh báo và hiển thị thông báo.
 
 ### 5.2 FastAPI Gateway
 
-Backend mount cac router sau trong `backend/app/main.py`:
+Backend mount các router sau trong `backend/app/main.py`:
 
-| Router | Prefix | Vai tro |
+| Router | Prefix | Vai trò |
 | --- | --- | --- |
-| `auth.router` | `/auth` | Xac thuc, JWT, refresh, logout, OTP, thong tin user hien tai. |
-| `simulation.router` | `/simulation` | Tinh diem nguoc, bang quy doi diem, tra cuu diem sinh vien, danh sach canh bao, ML prediction, thong bao sinh vien. |
-| `upload.router` | `/upload` | Upload CSV/XLSX, validate, luu file raw, dong bo mock DB, trigger Databricks pipeline, lich su upload/edit. |
-| `admin.router` | `/admin` | Quan ly toan bo cau hinh hoc vu, user, mon, phan cong, diem, lich su diem, canh bao, grading rules. |
-| `lecturer.router` | `/lecturer` | API rieng cho giang vien: mon phu trach, diem theo mon, sua/xoa diem, upload diem theo mon. |
+| `auth.router` | `/auth` | Xác thực, JWT, refresh, logout, OTP, thông tin user hiện tại. |
+| `simulation.router` | `/simulation` | Tính điểm ngược, bảng quy đổi điểm, tra cứu điểm sinh viên, danh sách cảnh báo, ML prediction, thông báo sinh viên. |
+| `upload.router` | `/upload` | Upload CSV/XLSX, validate, lưu file raw, đồng bộ mock DB, trigger Databricks pipeline, lịch sử upload/edit. |
+| `admin.router` | `/admin` | Quản lý toàn bộ cấu hình học vụ, user, môn, phân công, điểm, lịch sử điểm, cảnh báo, grading rules. |
+| `lecturer.router` | `/lecturer` | API riêng cho giảng viên: môn phụ trách, điểm theo môn, sửa/xóa điểm, upload điểm theo môn. |
 
-### 5.3 Database va Cloud Layer
+### 5.3 Database Và Cloud Layer
 
-- `real_db.py`: in-memory store chinh cho user, mon hoc, phan cong, khoa/vien/nganh, hoc ky, activity logs, timeline, lich su diem, lich su gui canh bao va grading rules.
-- `fake_db.py`: compatibility wrapper, re-export tu `real_db.py` de cac import cu khong bi loi.
-- `databricks_db.py`: chua `MOCK_GOLD_DB`, `MOCK_SILVER_DB`, cac ham query Databricks SQL va fallback local.
-- `services/databricks_jobs.py`: upload CSV len Workspace Files, trigger Databricks Job bang `/api/2.2/jobs/run-now`, kiem tra run status.
-- `services/ml_service.py`: goi Databricks MLflow Serving neu co host/token; neu khong thi dung local fallback risk model.
+- `real_db.py`: in-memory store chính cho user, môn học, phân công, khoa/viện/ngành, học kỳ, activity logs, timeline, lịch sử điểm, lịch sử gửi cảnh báo và grading rules.
+- `fake_db.py`: compatibility wrapper, re-export từ `real_db.py` để các import cũ không bị lỗi.
+- `databricks_db.py`: chứa `MOCK_GOLD_DB`, `MOCK_SILVER_DB`, các hàm query Databricks SQL và fallback local.
+- `services/databricks_jobs.py`: upload CSV lên Workspace Files, trigger Databricks Job bằng `/api/2.2/jobs/run-now`, kiểm tra run status.
+- `services/ml_service.py`: gọi Databricks MLflow Serving nếu có host/token; nếu không thì dùng local fallback risk model.
 
 ---
 
-## 6. Luong Xu Ly Nghiep Vu
+## 6. Luồng Xử Lý Nghiệp Vụ
 
-### 6.1 Luong dang nhap va phan quyen
+### 6.1 Luồng Đăng Nhập Và Phân Quyền
 
 ```mermaid
 sequenceDiagram
@@ -195,7 +195,7 @@ sequenceDiagram
     participant AuthSvc as auth_service.py
     participant DB as real_db.USERS_DB
 
-    User->>FE: Nhap email/MSSV va mat khau
+    User->>FE: Nhập email/MSSV và mật khẩu
     FE->>Auth: POST /auth/login
     Auth->>AuthSvc: login_user()
     AuthSvc->>DB: find_user_by_login()
@@ -206,7 +206,7 @@ sequenceDiagram
     Auth-->>FE: UserOut + role
 ```
 
-### 6.2 Luong upload bang diem
+### 6.2 Luồng Upload Bảng Điểm
 
 ```mermaid
 sequenceDiagram
@@ -219,19 +219,19 @@ sequenceDiagram
     participant Jobs as Databricks Jobs API
     participant Logs as ACTIVITY_LOGS
 
-    Lecturer->>FE: Chon file CSV/XLSX
+    Lecturer->>FE: Chọn file CSV/XLSX
     FE->>Upload: POST /upload/file
-    Upload->>Parser: Doc file, parse template IUH hoac CSV chuan
+    Upload->>Parser: Đọc file, parse template IUH hoặc CSV chuẩn
     Parser-->>Upload: parsed rows
-    Upload->>Upload: Validate cot bat buoc, loai hoc phan, diem 0-10
-    Upload->>Storage: Luu file raw
+    Upload->>Upload: Validate cột bắt buộc, loại học phần, điểm 0-10
+    Upload->>Storage: Lưu file raw
     Upload->>Mock: save_uploaded_scores_mock()
     Upload->>Jobs: Upload CSV pipeline + run-now
-    Upload->>Logs: Ghi activity log, thong bao in-app
+    Upload->>Logs: Ghi activity log, thông báo in-app
     Upload-->>FE: filename, records_processed, databricks_run_id
 ```
 
-### 6.3 Luong sinh vien gia lap diem muc tieu
+### 6.3 Luồng Sinh Viên Giả Lập Điểm Mục Tiêu
 
 ```mermaid
 sequenceDiagram
@@ -241,16 +241,16 @@ sequenceDiagram
     participant DDB as databricks_db.py
     participant Svc as simulation_service.py
 
-    Student->>FE: Chon mon va diem chu muc tieu
+    Student->>FE: Chọn môn và điểm chữ mục tiêu
     FE->>Sim: POST /simulation/calc
     Sim->>DDB: query_gold_diem_sinh_vien(student_id, ma_mon)
-    DDB-->>Sim: Gold/Silver mapped row hoac MOCK_GOLD_DB
+    DDB-->>Sim: Gold/Silver mapped row hoặc MOCK_GOLD_DB
     Sim->>Svc: simulate(SimulationRequest)
     Svc-->>Sim: SimulationResult
     Sim-->>FE: diem_can_dat, is_kha_thi, chi_tiet
 ```
 
-### 6.4 Luong canh bao hoc vu va ML
+### 6.4 Luồng Cảnh Báo Học Vụ Và ML
 
 ```mermaid
 sequenceDiagram
@@ -261,121 +261,121 @@ sequenceDiagram
     participant ML as ml_service.py
     participant UserDB as USERS_DB
 
-    Admin->>FE: Mo danh sach canh bao
+    Admin->>FE: Mở danh sách cảnh báo
     FE->>Sim: GET /simulation/warnings
     Sim->>DDB: query_silver_warnings_from_cloud()
-    DDB-->>Sim: Silver rows hoac None
+    DDB-->>Sim: Silver rows hoặc None
     Sim->>ML: predict_failure_risk(tk_avg, gk)
     ML-->>Sim: fail_risk
     Sim-->>FE: warnings
-    Admin->>FE: Gui canh bao
+    Admin->>FE: Gửi cảnh báo
     FE->>Sim: POST /simulation/send-warning-email
-    Sim->>UserDB: Them notification cho sinh vien
+    Sim->>UserDB: Thêm notification cho sinh viên
 ```
 
 ---
 
-## 7. Quy Che Tinh Diem
+## 7. Quy Chế Tính Điểm
 
-### 7.1 Mon ly thuyet
+### 7.1 Môn Lý Thuyết
 
 ```text
-T = 0.2 * DTB_TK + 0.3 * GK + 0.5 * CK
-CK_can_dat = (Diem_muc_tieu - 0.2 * DTB_TK - 0.3 * GK) / 0.5
+T = 0.2 * ĐTB_TK + 0.3 * GK + 0.5 * CK
+CK_cần_đạt = (Điểm_mục_tiêu - 0.2 * ĐTB_TK - 0.3 * GK) / 0.5
 ```
 
-Dieu kien code dang validate:
+Điều kiện code đang validate:
 
-- `diem_giua_ky` bat buoc.
-- Co `diem_thuong_ky_list` kem `so_tin_chi` bang 2 hoac 3, hoac co `diem_thuong_ky` legacy.
-- Diem can dat duoc lam tron len 1 chu so thap phan.
-- Neu diem can dat > 10 thi `is_kha_thi = false`.
+- `diem_giua_ky` bắt buộc.
+- Có `diem_thuong_ky_list` kèm `so_tin_chi` bằng 2 hoặc 3, hoặc có `diem_thuong_ky` legacy.
+- Điểm cần đạt được làm tròn lên 1 chữ số thập phân.
+- Nếu điểm cần đạt > 10 thì `is_kha_thi = false`.
 
-### 7.2 Mon thuc hanh
+### 7.2 Môn Thực Hành
 
 ```text
 T = mean(TH_1, ..., TH_n)
-Diem_can_dat_cho_moi_buoi_con_lai =
-    (Diem_muc_tieu * tong_so_buoi - sum(TH_da_co)) / so_buoi_con_lai
+Điểm_cần_đạt_cho_mỗi_buổi_còn_lại =
+    (Điểm_mục_tiêu * tổng_số_buổi - sum(TH_đã_có)) / số_buổi_còn_lại
 ```
 
-Dieu kien code dang validate:
+Điều kiện code đang validate:
 
-- Can `diem_thuc_hanh_hien_tai` va `so_tin_chi` hoac `tong_so_buoi`.
-- Neu da du buoi, tra ket qua dua tren diem trung binh hien tai.
-- Neu diem trung binh thuc hanh < 3.0 thi tra canh bao liet thuc hanh/rot mon.
+- Cần `diem_thuc_hanh_hien_tai` và `so_tin_chi` hoặc `tong_so_buoi`.
+- Nếu đã đủ buổi, trả kết quả dựa trên điểm trung bình hiện tại.
+- Nếu điểm trung bình thực hành < 3.0 thì trả cảnh báo liệt thực hành/rớt môn.
 
-### 7.3 Mon tich hop
+### 7.3 Môn Tích Hợp
 
 ```text
 T = (T_LT * so_chi_lt + T_TH * so_chi_th) / (so_chi_lt + so_chi_th)
-T_LT_can_dat = (Diem_muc_tieu * tong_chi - T_TH * so_chi_th) / so_chi_lt
+T_LT_cần_đạt = (Điểm_mục_tiêu * tổng_chỉ - T_TH * so_chi_th) / so_chi_lt
 ```
 
-Neu co day du diem ly thuyet thanh phan:
+Nếu có đầy đủ điểm lý thuyết thành phần:
 
 ```text
-T_LT = 0.2 * DTB_TK_LT + 0.3 * GK_LT + 0.5 * CK_LT
-CK_LT_can_dat = (T_LT_can_dat - 0.2 * DTB_TK_LT - 0.3 * GK_LT) / 0.5
+T_LT = 0.2 * ĐTB_TK_LT + 0.3 * GK_LT + 0.5 * CK_LT
+CK_LT_cần_đạt = (T_LT_cần_đạt - 0.2 * ĐTB_TK_LT - 0.3 * GK_LT) / 0.5
 ```
 
-Dieu kien code dang validate:
+Điều kiện code đang validate:
 
-- Bat buoc co `so_chi_lt`, `so_chi_th`, `diem_thuc_hanh_tich_hop`.
-- Neu `diem_thuc_hanh_tich_hop < 3.0` thi bat kha thi do liet thuc hanh.
-- Neu co `diem_thuong_ky_lt_list`, so dau diem phai bang `so_chi_lt`.
+- Bắt buộc có `so_chi_lt`, `so_chi_th`, `diem_thuc_hanh_tich_hop`.
+- Nếu `diem_thuc_hanh_tich_hop < 3.0` thì bất khả thi do liệt thực hành.
+- Nếu có `diem_thuong_ky_lt_list`, số đầu điểm phải bằng `so_chi_lt`.
 
-### 7.4 Bang quy doi diem
+### 7.4 Bảng Quy Đổi Điểm
 
-| Diem chu | Diem 10 min | Diem 10 max | Diem he 4 | Ket qua |
+| Điểm chữ | Điểm 10 min | Điểm 10 max | Điểm hệ 4 | Kết quả |
 | --- | ---: | ---: | ---: | --- |
-| A+ | 9.0 | 10.0 | 4.0 | Dat |
-| A | 8.5 | 8.9 | 4.0 | Dat |
-| B+ | 8.0 | 8.4 | 3.5 | Dat |
-| B | 7.0 | 7.9 | 3.0 | Dat |
-| C+ | 6.0 | 6.9 | 2.5 | Dat |
-| C | 5.5 | 5.9 | 2.0 | Dat |
-| D+ | 5.0 | 5.4 | 1.5 | Dat |
-| D | 4.0 | 4.9 | 1.0 | Dat |
-| F | 0.0 | 3.9 | 0.0 | Khong dat |
+| A+ | 9.0 | 10.0 | 4.0 | Đạt |
+| A | 8.5 | 8.9 | 4.0 | Đạt |
+| B+ | 8.0 | 8.4 | 3.5 | Đạt |
+| B | 7.0 | 7.9 | 3.0 | Đạt |
+| C+ | 6.0 | 6.9 | 2.5 | Đạt |
+| C | 5.5 | 5.9 | 2.0 | Đạt |
+| D+ | 5.0 | 5.4 | 1.5 | Đạt |
+| D | 4.0 | 4.9 | 1.0 | Đạt |
+| F | 0.0 | 3.9 | 0.0 | Không đạt |
 
 ---
 
-## 8. Thiet Ke Co So Du Lieu
+## 8. Thiết Kế Cơ Sở Dữ Liệu
 
-Hien tai backend dung in-memory stores de demo/test, duoc seed khi import `real_db.py`. Khi co Databricks config, cac API doc diem uu tien query Databricks SQL Warehouse, sau do fallback ve mock store.
+Hệ thống hiện dùng in-memory stores để demo/test, được seed khi import `real_db.py`. Khi có Databricks config, các API đọc điểm ưu tiên query Databricks SQL Warehouse, sau đó fallback về mock store.
 
-### 8.1 Bang/store nghiep vu trong backend
+### 8.1 Bảng/Store Nghiệp Vụ Trong Backend
 
-| Store | File | Muc dich | Truong chinh |
+| Store | File | Mục đích | Trường chính |
 | --- | --- | --- | --- |
-| `USERS_DB` | `real_db.py` | Tai khoan admin, lecturer, student | `id`, `email`, `username`, `password_hash`, `full_name`, `role`, `student_id`, `lecturer_id`, `faculty_id`, `major_id`, `lop_hoc`, `notifications` |
-| `BLACKLIST` | `real_db.py` | Refresh token da logout | token string |
-| `PASSWORD_RESET_OTPS` | `real_db.py` | OTP doi mat khau | `username`, `email`, `otp`, expiry metadata |
-| `COURSES_DB` | `real_db.py` | Danh muc mon hoc | `id`, `name`, `type`, `credits`, `chi_lt`, `chi_th`, `faculty_id`, `major_id`, `hoc_ky` |
-| `ASSIGNMENTS_DB` | `real_db.py` | Phan cong giang vien | `id`, `lecturer_id`, `ma_mon`, `ten_mon`, `ma_lop`, `hoc_ky`, `hoc_ky_num` |
-| `DEPARTMENTS_DB` | `real_db.py` | Danh muc khoa | `id`, `name`, `type` |
-| `INSTITUTES_DB` | `real_db.py` | Danh muc vien | `id`, `name`, `type` |
-| `MAJORS_DB` | `real_db.py` | Danh muc nganh/chuyen nganh | `id`, `name`, `faculty_id` |
-| `ACTIVITY_LOGS` | `real_db.py` | Nhat ky upload, sua diem, admin actions | `id`, `actor_email`, `actor_name`, `action`, `subject_id`, `subject_name`, `details`, `timestamp` |
-| `TIMELINE_UPDATES` | `real_db.py` | Timeline cap nhat du an/he thong | `id`, `title`, `category`, `details`, `actor_email`, `timestamp` |
-| `SCORE_HISTORY_DB` | `real_db.py` | Lich su thay doi diem | `id/event_id`, `student_id`, `ma_mon`, `old_record`, `new_record`, `changed_fields`, `actor`, `timestamp` |
-| `WARNING_ACTIONS` | `real_db.py` | Lich su gui canh bao | `id`, `student_id`, `ma_mon`, `reason`, `fail_risk`, `channel`, `recipient`, `actor_email`, `timestamp` |
-| `GRADING_RULES_DB` | `real_db.py` | Cau hinh quy che cham diem | `version`, `theory_weights`, `practice_min_pass`, `integrated_default_credits`, `updated_at` |
-| `MOCK_GOLD_DB` | `databricks_db.py` | Bang diem hien tai theo `(student_id, ma_mon)` | diem thanh phan, loai hoc phan, tin chi, tong ket, diem chu, canh bao |
-| `MOCK_SILVER_DB` | `databricks_db.py` | View canh bao local suy ra tu Gold | `avg_tk`, `gk`, `risk_flag`, `status_canh_bao` |
+| `USERS_DB` | `real_db.py` | Tài khoản admin, lecturer, student | `id`, `email`, `username`, `password_hash`, `full_name`, `role`, `student_id`, `lecturer_id`, `faculty_id`, `major_id`, `lop_hoc`, `notifications` |
+| `BLACKLIST` | `real_db.py` | Refresh token đã logout | token string |
+| `PASSWORD_RESET_OTPS` | `real_db.py` | OTP đổi mật khẩu | `username`, `email`, `otp`, expiry metadata |
+| `COURSES_DB` | `real_db.py` | Danh mục môn học | `id`, `name`, `type`, `credits`, `chi_lt`, `chi_th`, `faculty_id`, `major_id`, `hoc_ky` |
+| `ASSIGNMENTS_DB` | `real_db.py` | Phân công giảng viên | `id`, `lecturer_id`, `ma_mon`, `ten_mon`, `ma_lop`, `hoc_ky`, `hoc_ky_num` |
+| `DEPARTMENTS_DB` | `real_db.py` | Danh mục khoa | `id`, `name`, `type` |
+| `INSTITUTES_DB` | `real_db.py` | Danh mục viện | `id`, `name`, `type` |
+| `MAJORS_DB` | `real_db.py` | Danh mục ngành/chuyên ngành | `id`, `name`, `faculty_id` |
+| `ACTIVITY_LOGS` | `real_db.py` | Nhật ký upload, sửa điểm, admin actions | `id`, `actor_email`, `actor_name`, `action`, `subject_id`, `subject_name`, `details`, `timestamp` |
+| `TIMELINE_UPDATES` | `real_db.py` | Timeline cập nhật dự án/hệ thống | `id`, `title`, `category`, `details`, `actor_email`, `timestamp` |
+| `SCORE_HISTORY_DB` | `real_db.py` | Lịch sử thay đổi điểm | `id/event_id`, `student_id`, `ma_mon`, `old_record`, `new_record`, `changed_fields`, `actor`, `timestamp` |
+| `WARNING_ACTIONS` | `real_db.py` | Lịch sử gửi cảnh báo | `id`, `student_id`, `ma_mon`, `reason`, `fail_risk`, `channel`, `recipient`, `actor_email`, `timestamp` |
+| `GRADING_RULES_DB` | `real_db.py` | Cấu hình quy chế chấm điểm | `version`, `theory_weights`, `practice_min_pass`, `integrated_default_credits`, `updated_at` |
+| `MOCK_GOLD_DB` | `databricks_db.py` | Bảng điểm hiện tại theo `(student_id, ma_mon)` | điểm thành phần, loại học phần, tín chỉ, tổng kết, điểm chữ, cảnh báo |
+| `MOCK_SILVER_DB` | `databricks_db.py` | View cảnh báo local suy ra từ Gold | `avg_tk`, `gk`, `risk_flag`, `status_canh_bao` |
 
-### 8.2 Bang Databricks duoc code truy van
+### 8.2 Bảng Databricks Được Code Truy Vấn
 
-| Bang | Muc dich | Noi dung code dang dung |
+| Bảng | Mục đích | Nội dung code đang dùng |
 | --- | --- | --- |
-| `workspace.smartgpa_db.gold_diem_sinh_vien` | Diem tong hop theo sinh vien-mon | `student_id`, `ma_mon`, `diem_thong_thuong`, `diem_giua_ky`, `diem_cuoi_ky`, `loai_hoc_phan`, `so_chi_lt`, `so_chi_th`, `tong_so_chi`, `status_canh_bao` |
-| `workspace.smartgpa_db.silver_diem_sinh_vien` | Diem da chuan hoa sau ETL | `student_id`, `student_name`, `ma_mon`, `ten_mon`, `ma_lop_hoc_phan`, `loai_hoc_phan`, `so_chi_lt`, `so_chi_th`, `tong_so_chi`, `thuong_xuyen_1`, `thuong_xuyen_2`, `giua_ky`, `thuc_hanh_1..3`, `qt_10`, `diem_cuoi_ky` |
-| `workspace.smartgpa_db.gold_du_bao_diem_cuoi_ky` | Du bao diem can dat theo muc tieu | `student_id`, `ma_mon`, `qt_10`, `diem_chu_muc_tieu`, `diem_muc_tieu_10`, `diem_cuoi_ky_can_dat`, `kha_thi`, `status_canh_bao` |
+| `workspace.smartgpa_db.gold_diem_sinh_vien` | Điểm tổng hợp theo sinh viên-môn | `student_id`, `ma_mon`, `diem_thong_thuong`, `diem_giua_ky`, `diem_cuoi_ky`, `loai_hoc_phan`, `so_chi_lt`, `so_chi_th`, `tong_so_chi`, `status_canh_bao` |
+| `workspace.smartgpa_db.silver_diem_sinh_vien` | Điểm đã chuẩn hóa sau ETL | `student_id`, `student_name`, `ma_mon`, `ten_mon`, `ma_lop_hoc_phan`, `loai_hoc_phan`, `so_chi_lt`, `so_chi_th`, `tong_so_chi`, `thuong_xuyen_1`, `thuong_xuyen_2`, `giua_ky`, `thuc_hanh_1..3`, `qt_10`, `diem_cuoi_ky` |
+| `workspace.smartgpa_db.gold_du_bao_diem_cuoi_ky` | Dự báo điểm cần đạt theo mục tiêu | `student_id`, `ma_mon`, `qt_10`, `diem_chu_muc_tieu`, `diem_muc_tieu_10`, `diem_cuoi_ky_can_dat`, `kha_thi`, `status_canh_bao` |
 
-Ten catalog/schema/table co the cau hinh bang bien moi truong `DATABRICKS_CATALOG`, `DATABRICKS_SCHEMA`, `DATABRICKS_GOLD_TABLE`.
+Tên catalog/schema/table có thể cấu hình bằng biến môi trường `DATABRICKS_CATALOG`, `DATABRICKS_SCHEMA`, `DATABRICKS_GOLD_TABLE`.
 
-### 8.3 ERD backend hien tai
+### 8.3 Sơ Đồ ERD Backend Hiện Tại
 
 ```mermaid
 erDiagram
@@ -534,7 +534,7 @@ erDiagram
     }
 ```
 
-### 8.4 So do Medallion/Databricks
+### 8.4 Sơ Đồ Medallion/Databricks
 
 ```mermaid
 flowchart LR
@@ -562,102 +562,102 @@ flowchart LR
 
 ---
 
-## 9. API Chinh
+## 9. API Chính
 
-| Method | Endpoint | Role | Chuc nang |
+| Method | Endpoint | Role | Chức năng |
 | --- | --- | --- | --- |
-| `POST` | `/auth/register` | Public | Tao tai khoan student/lecturer/admin. |
-| `POST` | `/auth/login` | Public | Dang nhap, tra access token va refresh token. |
-| `POST` | `/auth/refresh` | Public | Lam moi access token. |
+| `POST` | `/auth/register` | Public | Tạo tài khoản student/lecturer/admin. |
+| `POST` | `/auth/login` | Public | Đăng nhập, trả access token và refresh token. |
+| `POST` | `/auth/refresh` | Public | Làm mới access token. |
 | `POST` | `/auth/logout` | Authenticated | Blacklist refresh token. |
-| `GET` | `/auth/me` | Authenticated | Lay thong tin user hien tai. |
-| `POST` | `/simulation/simulate` | Student | Tinh diem nguoc tu payload diem thanh phan. |
-| `GET` | `/simulation/score-map` | Authenticated | Lay bang quy doi diem. |
-| `POST` | `/simulation/calc` | Authenticated | Lay diem tu Databricks/mock va tinh diem muc tieu. |
-| `GET` | `/simulation/student-lookup/{student_id}` | Authenticated | Tra cuu tat ca mon cua sinh vien, student chi xem duoc chinh minh. |
-| `GET` | `/simulation/warnings` | Admin | Lay danh sach canh bao hoc vu. |
-| `POST` | `/simulation/predict-risk` | Admin | Du doan ty le rot mon. |
-| `POST` | `/simulation/send-warning-email` | Admin | Gia lap gui email va them notification canh bao. |
-| `GET` | `/simulation/student-notifications` | Student | Lay thong bao in-app. |
-| `POST` | `/upload/file` | Lecturer/Admin | Upload CSV/XLSX va trigger Databricks pipeline. |
-| `GET` | `/upload/status/{run_id}` | Lecturer/Admin | Kiem tra trang thai Databricks run. |
+| `GET` | `/auth/me` | Authenticated | Lấy thông tin user hiện tại. |
+| `POST` | `/simulation/simulate` | Student | Tính điểm ngược từ payload điểm thành phần. |
+| `GET` | `/simulation/score-map` | Authenticated | Lấy bảng quy đổi điểm. |
+| `POST` | `/simulation/calc` | Authenticated | Lấy điểm từ Databricks/mock và tính điểm mục tiêu. |
+| `GET` | `/simulation/student-lookup/{student_id}` | Authenticated | Tra cứu tất cả môn của sinh viên, student chỉ xem được chính mình. |
+| `GET` | `/simulation/warnings` | Admin | Lấy danh sách cảnh báo học vụ. |
+| `POST` | `/simulation/predict-risk` | Admin | Dự đoán tỷ lệ rớt môn. |
+| `POST` | `/simulation/send-warning-email` | Admin | Giả lập gửi email và thêm notification cảnh báo. |
+| `GET` | `/simulation/student-notifications` | Student | Lấy thông báo in-app. |
+| `POST` | `/upload/file` | Lecturer/Admin | Upload CSV/XLSX và trigger Databricks pipeline. |
+| `GET` | `/upload/status/{run_id}` | Lecturer/Admin | Kiểm tra trạng thái Databricks run. |
 | `GET` | `/upload/activities` | Admin | Xem activity logs. |
-| `POST` | `/upload/edit` | Lecturer/Admin | Sua diem truc tiep trong mock Gold. |
-| `GET/POST/PUT/DELETE` | `/admin/*` | Admin | Quan ly hoc vu, user, mon, phan cong, diem, canh bao, rules. |
-| `GET/PUT/DELETE/POST` | `/lecturer/*` | Lecturer | API danh cho giang vien. |
+| `POST` | `/upload/edit` | Lecturer/Admin | Sửa điểm trực tiếp trong mock Gold. |
+| `GET/POST/PUT/DELETE` | `/admin/*` | Admin | Quản lý học vụ, user, môn, phân công, điểm, cảnh báo, rules. |
+| `GET/PUT/DELETE/POST` | `/lecturer/*` | Lecturer | API dành cho giảng viên. |
 
 ---
 
-## 10. Yeu Cau Chuc Nang
+## 10. Yêu Cầu Chức Năng
 
-### 10.1 Must Have da phu hop code
+### 10.1 Must Have Đã Phù Hợp Code
 
-- Dang nhap bang email/MSSV va mat khau, sinh JWT access/refresh token.
-- Phan quyen theo role Student/Lecturer/Admin bang dependency FastAPI.
-- Sinh vien chay simulation diem muc tieu cho mon ly thuyet, thuc hanh, tich hop.
-- Sinh vien tra cuu bang diem theo MSSV, co rule chi xem bang diem cua chinh minh.
-- Giang vien/Admin upload CSV/XLSX, validate header va diem 0-10.
-- Upload thanh cong thi dong bo vao `MOCK_GOLD_DB`, luu raw file, ghi activity log, trigger Databricks Job.
-- Admin quan ly hoc ky, mon hoc, phan cong, user, khoa/vien/nganh, diem va lich su diem.
-- Admin xem/gui canh bao hoc vu; sinh vien nhan notification in-app.
+- Đăng nhập bằng email/MSSV và mật khẩu, sinh JWT access/refresh token.
+- Phân quyền theo role Student/Lecturer/Admin bằng dependency FastAPI.
+- Sinh viên chạy simulation điểm mục tiêu cho môn lý thuyết, thực hành, tích hợp.
+- Sinh viên tra cứu bảng điểm theo MSSV, có rule chỉ xem bảng điểm của chính mình.
+- Giảng viên/Admin upload CSV/XLSX, validate header và điểm 0-10.
+- Upload thành công thì đồng bộ vào `MOCK_GOLD_DB`, lưu raw file, ghi activity log, trigger Databricks Job.
+- Admin quản lý học kỳ, môn học, phân công, user, khoa/viện/ngành, điểm và lịch sử điểm.
+- Admin xem/gửi cảnh báo học vụ; sinh viên nhận notification in-app.
 
 ### 10.2 Should Have
 
-- Databricks SQL Warehouse co bang Silver/Gold dung schema code dang query.
-- Databricks MLflow Serving endpoint cho du doan risk that, thay cho fallback local.
-- Dashboard frontend loc theo lop, mon, hoc ky, giang vien.
-- Dong bo hai chieu giua sua diem local/mock va Delta table that neu trien khai production.
+- Databricks SQL Warehouse có bảng Silver/Gold đúng schema code đang query.
+- Databricks MLflow Serving endpoint cho dự đoán risk thật, thay cho fallback local.
+- Dashboard frontend lọc theo lớp, môn, học kỳ, giảng viên.
+- Đồng bộ hai chiều giữa sửa điểm local/mock và Delta table thật nếu triển khai production.
 
 ### 10.3 Could Have
 
-- Include va hoan thien `backend/app/routers/scores.py` vao `main.py` neu muon co REST scores API `/api/v1/scores`.
-- Chuyen in-memory stores sang database ben vung nhu PostgreSQL.
-- Tach Auth, Simulation, Upload, Admin thanh cac service rieng neu can scale doc lap.
-- Them notification/email provider that thay cho console simulation.
+- Include và hoàn thiện `backend/app/routers/scores.py` vào `main.py` nếu muốn có REST scores API `/api/v1/scores`.
+- Chuyển in-memory stores sang database bền vững như PostgreSQL.
+- Tách Auth, Simulation, Upload, Admin thành các service riêng nếu cần scale độc lập.
+- Thêm notification/email provider thật thay cho console simulation.
 
 ---
 
-## 11. Yeu Cau Phi Chuc Nang
+## 11. Yêu Cầu Phi Chức Năng
 
-| Nhom yeu cau | Mo ta theo code hien tai |
+| Nhóm yêu cầu | Mô tả theo code hiện tại |
 | --- | --- |
-| Bao mat | JWT HS256, bcrypt password, role guard, blacklist refresh token sau logout. |
-| Toan ven du lieu | Validate file upload, validate diem 0-10, ghi activity log va score history khi sua diem. |
-| Kha dung demo | Co fallback local neu Databricks SQL/Jobs/MLflow chua cau hinh hoac loi ket noi. |
-| Hieu nang | Simulation tinh truc tiep trong FastAPI, phu hop request real-time. |
-| Kha bao tri | Tach layer Router -> Service -> DB helper, Pydantic schema tap trung trong `models/schemas.py`. |
-| Kha quan sat | Luu `databricks_run_id`, activity logs, timeline updates, score history, warning actions. |
+| Bảo mật | JWT HS256, bcrypt password, role guard, blacklist refresh token sau logout. |
+| Toàn vẹn dữ liệu | Validate file upload, validate điểm 0-10, ghi activity log và score history khi sửa điểm. |
+| Khả dụng demo | Có fallback local nếu Databricks SQL/Jobs/MLflow chưa cấu hình hoặc lỗi kết nối. |
+| Hiệu năng | Simulation tính trực tiếp trong FastAPI, phù hợp request real-time. |
+| Khả bảo trì | Tách layer Router -> Service -> DB helper, Pydantic schema tập trung trong `models/schemas.py`. |
+| Khả quan sát | Lưu `databricks_run_id`, activity logs, timeline updates, score history, warning actions. |
 
 ---
 
-## 12. Ke Hoach Kiem Thu
+## 12. Kế Hoạch Kiểm Thử
 
-| Ma TC | Module | Kich ban | Ket qua mong doi |
+| Mã TC | Module | Kịch bản | Kết quả mong đợi |
 | --- | --- | --- | --- |
-| TC-01 | Auth | Login dung email/MSSV va password | Tra access token, refresh token, role dung. |
-| TC-02 | Auth | Goi protected endpoint khong token | Tra `401 Unauthorized`. |
-| TC-03 | Role guard | Student goi upload/admin API | Tra `403 Forbidden`. |
-| TC-04 | Simulation | Mon ly thuyet co TK/GK, muc tieu A | Tra `diem_can_dat` theo cong thuc. |
-| TC-05 | Simulation | Diem can dat > 10 | Tra `is_kha_thi = false`. |
-| TC-06 | Simulation | Mon thuc hanh diem TH < 3 | Tra canh bao liet thuc hanh/rot mon. |
-| TC-07 | Simulation | Mon tich hop thieu diem thanh phan | Tra loi/ket qua bat kha thi phu hop validation. |
-| TC-08 | Upload | File sai dinh dang | Tra `422 Unprocessable Entity`. |
-| TC-09 | Upload | CSV/XLSX thieu cot bat buoc | Tra danh sach cot thieu. |
-| TC-10 | Upload | File hop le | Luu raw file, sync mock DB, trigger Databricks Job, tra `databricks_run_id`. |
-| TC-11 | Admin | Sua diem | Cap nhat `MOCK_GOLD_DB`, sync silver, ghi score history va activity log. |
-| TC-12 | Warnings | Admin lay danh sach canh bao | Tra risk list tu Databricks Silver hoac fallback mock + ML local. |
-| TC-13 | Lecturer | Giang vien xem mon phu trach | Tra danh sach assignments va diem theo mon. |
+| TC-01 | Auth | Login đúng email/MSSV và password | Trả access token, refresh token, role đúng. |
+| TC-02 | Auth | Gọi protected endpoint không token | Trả `401 Unauthorized`. |
+| TC-03 | Role guard | Student gọi upload/admin API | Trả `403 Forbidden`. |
+| TC-04 | Simulation | Môn lý thuyết có TK/GK, mục tiêu A | Trả `diem_can_dat` theo công thức. |
+| TC-05 | Simulation | Điểm cần đạt > 10 | Trả `is_kha_thi = false`. |
+| TC-06 | Simulation | Môn thực hành điểm TH < 3 | Trả cảnh báo liệt thực hành/rớt môn. |
+| TC-07 | Simulation | Môn tích hợp thiếu điểm thành phần | Trả lỗi/kết quả bất khả thi phù hợp validation. |
+| TC-08 | Upload | File sai định dạng | Trả `422 Unprocessable Entity`. |
+| TC-09 | Upload | CSV/XLSX thiếu cột bắt buộc | Trả danh sách cột thiếu. |
+| TC-10 | Upload | File hợp lệ | Lưu raw file, sync mock DB, trigger Databricks Job, trả `databricks_run_id`. |
+| TC-11 | Admin | Sửa điểm | Cập nhật `MOCK_GOLD_DB`, sync silver, ghi score history và activity log. |
+| TC-12 | Warnings | Admin lấy danh sách cảnh báo | Trả risk list từ Databricks Silver hoặc fallback mock + ML local. |
+| TC-13 | Lecturer | Giảng viên xem môn phụ trách | Trả danh sách assignments và điểm theo môn. |
 
 ---
 
-## 13. Ket Qua Demo Hien Tai
+## 13. Kết Quả Demo Hiện Tại
 
-- Backend FastAPI chay tai `http://localhost:8001`, docs tai `/docs`.
-- Frontend Vite chay tai `http://localhost:5173`.
-- Du lieu demo duoc seed trong `real_db.py`: admin, giang vien, 98 sinh vien DHKHDL19A/B, danh muc mon hoc 9 hoc ky, phan cong giang vien.
-- `MOCK_GOLD_DB` luu diem theo khoa `(student_id, ma_mon)` cho cac mon da/ dang hoc.
-- Upload CSV/XLSX co ho tro parse mau bang diem IUH, map ma mon that sang ma mon noi bo qua `COURSE_ID_MAP`.
-- Co tich hop Databricks SQL/Jobs/MLflow qua bien moi truong, va co fallback local de test/demo.
+- Backend FastAPI chạy tại `http://localhost:8001`, docs tại `/docs`.
+- Frontend Vite chạy tại `http://localhost:5173`.
+- Dữ liệu demo được seed trong `real_db.py`: admin, giảng viên, 98 sinh viên DHKHDL19A/B, danh mục môn học 9 học kỳ, phân công giảng viên.
+- `MOCK_GOLD_DB` lưu điểm theo khóa `(student_id, ma_mon)` cho các môn đã/đang học.
+- Upload CSV/XLSX có hỗ trợ parse mẫu bảng điểm IUH, map mã môn thật sang mã môn nội bộ qua `COURSE_ID_MAP`.
+- Có tích hợp Databricks SQL/Jobs/MLflow qua biến môi trường, và có fallback local để test/demo.
 
 ---
 
