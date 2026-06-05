@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 SmartGPA – Test Simulation Engine
 Covers:
@@ -17,7 +18,7 @@ client = TestClient(app)
 def _get_student_token() -> str:
     resp = client.post("/auth/login", json={
         "email": "student@smartgpa.edu",
-        "password": "password123",
+        "password": "Sv@123",
     })
     assert resp.status_code == 200
     return resp.json()["access_token"]

@@ -60,8 +60,8 @@ def _build_infeasible(
         diem_can_dat=None,
         is_kha_thi=False,
         message=(
-            f"Mục tiêu Bất khả thi! "
-            f"Điểm cần đạt ({raw_score:.2f}) vượt quá thang điểm tối đa (10.0)."
+            f"Rất tiếc, mục tiêu đạt điểm chữ {muc_tieu} (yêu cầu tổng điểm ≥{threshold}) "
+            f"hiện tại là Bất khả thi, vì điểm số cần đạt ({raw_score:.1f}) đã vượt quá thang điểm 10.0 tối đa."
         ),
         chi_tiet=chi_tiet,
     )
@@ -76,7 +76,7 @@ def _build_guaranteed(
         diem_muc_tieu_nguong=threshold,
         diem_can_dat=0.0,
         is_kha_thi=True,
-        message=f"Bạn đã chắc chắn đạt mục tiêu {muc_tieu} mà không cần thêm điểm!",
+        message=f"Tuyệt vời! Điểm số hiện tại của bạn đã chắc chắn đạt được mục tiêu điểm {muc_tieu} (yêu cầu ≥{threshold}) mà không cần thêm điểm thành phần nào nữa!",
         chi_tiet=chi_tiet,
     )
 
@@ -187,8 +187,8 @@ def _simulate_ly_thuyet(req: SimulationRequest, threshold: float) -> SimulationR
         diem_can_dat=ck_needed,
         is_kha_thi=True,
         message=(
-            f"Bạn cần đạt tối thiểu {ck_needed} điểm cuối kỳ "
-            f"để đạt loại {req.muc_tieu.value} (≥{threshold} điểm)"
+            f"Chúc bạn cố gắng học tốt! Bạn cần đạt tối thiểu {ck_needed} điểm thi cuối kỳ "
+            f"để hoàn thành mục tiêu đạt điểm chữ {req.muc_tieu.value} (yêu cầu tổng điểm ≥{threshold}). Hãy tự tin ôn tập nhé!"
         ),
         chi_tiet=chi_tiet,
     )
@@ -286,8 +286,8 @@ def _simulate_thuc_hanh(req: SimulationRequest, threshold: float) -> SimulationR
         diem_can_dat=score_needed,
         is_kha_thi=True,
         message=(
-            f"Bạn cần đạt trung bình tối thiểu {score_needed} điểm "
-            f"cho {remaining} buổi thực hành còn lại để đạt loại {req.muc_tieu.value}"
+            f"Chúc bạn cố gắng nỗ lực! Bạn cần đạt trung bình tối thiểu {score_needed} điểm "
+            f"cho {remaining} buổi thực hành còn lại để chắc chắn đạt mục tiêu điểm chữ {req.muc_tieu.value} (yêu cầu tổng điểm ≥{threshold}). Cố gắng lên!"
         ),
         chi_tiet=chi_tiet,
     )
@@ -382,8 +382,8 @@ def _simulate_tich_hop(req: SimulationRequest, threshold: float) -> SimulationRe
         return _build_infeasible(loai_str, req.muc_tieu.value, threshold, t_lt_raw, chi_tiet_base)
 
     base_message = (
-        f"Điểm tổng kết nhánh lý thuyết phải đạt từ {t_lt_needed} trở lên "
-        f"để đạt loại {req.muc_tieu.value}"
+        f"Điểm tổng kết nhánh lý thuyết cần đạt tối thiểu {t_lt_needed} "
+        f"để đạt mục tiêu điểm chữ {req.muc_tieu.value}"
     )
 
     # ── Drill-down lý thuyết để tính CK nếu có điểm thành phần ──
@@ -451,7 +451,7 @@ def _simulate_tich_hop(req: SimulationRequest, threshold: float) -> SimulationRe
                 diem_muc_tieu_nguong=threshold,
                 diem_can_dat=0.0,
                 is_kha_thi=True,
-                message=base_message + ". Bạn đã chắc chắn đạt mục tiêu mà không cần điểm thi cuối kỳ lý thuyết!",
+                message=f"Chúc bạn học tốt! " + base_message + ". Đặc biệt, điểm lý thuyết hiện tại của bạn đã đủ để đạt mục tiêu mà không cần thi lý thuyết cuối kỳ!",
                 chi_tiet=chi_tiet_base,
             )
 
@@ -461,7 +461,7 @@ def _simulate_tich_hop(req: SimulationRequest, threshold: float) -> SimulationRe
             diem_muc_tieu_nguong=threshold,
             diem_can_dat=ck_lt_needed,
             is_kha_thi=True,
-            message=base_message + f". Điểm cuối kỳ lý thuyết cần đạt tối thiểu {ck_lt_needed}",
+            message=f"Chúc bạn học tốt và cố gắng! " + base_message + f". Trong đó, điểm thi lý thuyết cuối kỳ cần đạt tối thiểu {ck_lt_needed}.",
             chi_tiet=chi_tiet_base,
         )
 

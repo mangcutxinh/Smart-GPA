@@ -50,7 +50,7 @@ def send_email(to_email: str, subject: str, body: str) -> None:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Khong gui duoc email OTP qua SMTP: {exc}",
         )
-from app.db.fake_db import BLACKLIST, PASSWORD_RESET_OTPS, USERS_DB, find_user_by_login, user_login_key
+from app.db.real_db import BLACKLIST, PASSWORD_RESET_OTPS, USERS_DB, find_user_by_login, user_login_key
 from app.models.schemas import (
     AccessTokenResponse,
     PasswordChangeWithOtp,

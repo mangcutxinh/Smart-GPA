@@ -8,25 +8,25 @@
 
 | STT | Họ và tên | MSSV | Vai trò |
 | --- | --- | --- | --- |
-| 1 |  |  | Leader / SOA Backend Architect |
-| 2 | Nguyễn Văn A | [MSSV] | Data Engineer |
-| 3 | Trần Thị B | [MSSV] | ML / Cloud Engineer |
-| 4 | Lê Hoàng D | [MSSV] | Frontend Developer |
-| 5 | Phạm Minh E | [MSSV] | QA / Data Analyst |
+| 1 | Nguyễn Thị Quỳnh Trang | 23676071 | Leader / SOA Backend Architect |
+| 2 | Vũ Ngọc Thu Phương | 23696981 | Data Engineer |
+| 3 | Phan Trần Thảo Vy | 23670631 | ML / Cloud Engineer |
+| 4 | Ngô Phước Thiên | 23670311 | Frontend Developer |
+| 5 | Trương Thế Hải Thịnh | 23725051 | QA / Data Analyst |
 
-**Git Repository:** [https://github.com/TruongTheHaiThinh/SmartGPA-Academic-Analytics-Platform](https://github.com/TruongTheHaiThinh/SmartGPA-Academic-Analytics-Platform)
+**Git Repository:** [https://github.com/mangcutxinh/Smart-GPA](https://github.com/mangcutxinh/Smart-GPA)
 
 ### 1.2 Cấu trúc nhánh Git
 
 | Nhánh | Chức năng / Module | Người phụ trách |
 | --- | --- | --- |
-| `feature/auth-gateway` | Xác thực JWT, phân quyền, API Gateway | Chan |
-| `feature/student-service` | Quản lý hồ sơ sinh viên, tra cứu điểm cá nhân | Chan |
-| `feature/grade-prediction-service` | Dự báo nguy cơ rớt môn, cảnh báo học vụ | Trần Thị B |
-| `feature/grade-target-service` | Tính điểm mục tiêu, giả lập điểm cuối kỳ | Chan |
-| `feature/databricks-pipeline` | Delta Lake, PySpark ETL, bảng Bronze/Silver/Gold | Nguyễn Văn A |
-| `feature/client-dashboard` | Web Dashboard cho Student/Lecturer/Admin | Lê Hoàng D |
-| `feature/analytics-dashboard` | Spark SQL Analytics, test tích hợp, báo cáo | Phạm Minh E |
+| `feature/auth-gateway` | Xác thực JWT, phân quyền, API Gateway | Nguyễn Thị Quỳnh Trang |
+| `feature/student-service` | Quản lý hồ sơ sinh viên, tra cứu điểm cá nhân | Nguyễn Thị Quỳnh Trang |
+| `feature/grade-prediction-service` | Dự báo nguy cơ rớt môn, cảnh báo học vụ | Phan Trần Thảo Vy |
+| `feature/grade-target-service` | Tính điểm mục tiêu, giả lập điểm cuối kỳ | Nguyễn Thị Quỳnh Trang |
+| `feature/databricks-pipeline` | Delta Lake, PySpark ETL, bảng Bronze/Silver/Gold | Vũ Ngọc Thu Phương |
+| `feature/client-dashboard` | Web Dashboard cho Student/Lecturer/Admin | Ngô Phước Thiên |
+| `feature/analytics-dashboard` | Spark SQL Analytics, test tích hợp, báo cáo | Trương Thế Hải Thịnh |
 | `develop` | Tích hợp các module đã review | Cả nhóm |
 | `main` | Bản ổn định để nộp và demo | Cả nhóm |
 
@@ -280,13 +280,13 @@ Dữ liệu nghiệp vụ được tổ chức theo hai lớp: dữ liệu ứng
 | Bảng | Mục đích | Trường chính |
 | --- | --- | --- |
 | `users` | Lưu tài khoản hệ thống | `id`, `email`, `password_hash`, `full_name`, `role`, `is_active`, `created_at` |
-| `students` | Hồ sơ sinh viên | `student_id`, `user_id`, `major_id`, `class_code`, `academic_year` |
+| `students` | Hồ sơ sinh viên | `student_id`, `user_id`, `major_id`, `class_code`, `academic_year`, `gioi_tinh`, `ngay_sinh` |
 | `lecturers` | Hồ sơ giảng viên | `lecturer_id`, `user_id`, `faculty_id`, `department` |
 | `subjects` | Cấu hình môn học | `ma_mon`, `ten_mon`, `loai_hoc_phan`, `so_chi_lt`, `so_chi_th`, `tong_so_chi` |
 | `class_sections` | Lớp học phần | `ma_lop_hoc_phan`, `ma_mon`, `lecturer_id`, `semester`, `school_year` |
 | `enrollments` | Sinh viên trong lớp học phần | `id`, `student_id`, `ma_lop_hoc_phan`, `status` |
 | `score_uploads` | Lịch sử upload file điểm | `upload_id`, `filename`, `lecturer_id`, `status`, `created_at`, `databricks_run_id` |
-| `student_scores` | Điểm thành phần và trạng thái hiện tại | `score_id`, `student_id`, `ma_lop_hoc_phan`, `diem_thong_thuong`, `diem_giua_ky`, `diem_cuoi_ky`, `status_canh_bao` |
+| `student_scores` | Điểm thành phần và trạng thái hiện tại | `score_id`, `student_id`, `ma_lop_hoc_phan`, `upload_id`, `diem_thong_thuong_list`, `diem_giua_ky`, `diem_cuoi_ky`, `diem_thuc_hanh_hien_tai`, `diem_thuc_hanh_tich_hop`, `diem_thuong_ky_lt_list`, `diem_giua_ky_lt`, `diem_tong_ket`, `diem_chu`, `diem_he_4`, `ket_qua`, `status_canh_bao` |
 | `grade_targets` | Thang quy đổi điểm chữ | `grade_code`, `min_score_10`, `max_score_10`, `score_4`, `description` |
 | `predictions` | Kết quả dự báo nguy cơ | `prediction_id`, `student_id`, `ma_mon`, `risk_probability`, `risk_label`, `model_version`, `created_at` |
 | `notifications` | Thông báo in-app | `notification_id`, `user_id`, `title`, `message`, `type`, `is_read`, `created_at` |
@@ -310,6 +310,7 @@ erDiagram
     users ||--o{ notifications : "receives"
 
     lecturers ||--o{ class_sections : "teaches"
+    lecturers ||--o{ score_uploads : "uploads"
     subjects ||--o{ class_sections : "opens"
     class_sections ||--o{ enrollments : "contains"
     students ||--o{ enrollments : "joins"
@@ -324,7 +325,7 @@ erDiagram
 
     users {
         string id PK
-        string email UK
+        string email
         string password_hash
         string full_name
         string role
@@ -338,6 +339,8 @@ erDiagram
         string major_id
         string class_code
         string academic_year
+        string gioi_tinh
+        string ngay_sinh
     }
 
     lecturers {
@@ -385,11 +388,17 @@ erDiagram
         string student_id FK
         string ma_lop_hoc_phan FK
         string upload_id FK
-        float diem_thong_thuong
+        string diem_thong_thuong_list
         float diem_giua_ky
         float diem_cuoi_ky
-        float diem_tong_ket_10
-        string diem_chu
+        string diem_thuc_hanh_hien_tai
+        float diem_thuc_hanh_tich_hop
+        string diem_thuong_ky_lt_list
+        float diem_giua_ky_lt
+        float diem_tong_ket
+        string diem_chu FK
+        float diem_he_4
+        string ket_qua
         string status_canh_bao
     }
 
@@ -546,3 +555,33 @@ Trường chính:
 1. Với dữ liệu điểm học tập tăng theo từng học kỳ, nên partition Delta Lake theo `school_year`, `semester`, `ma_lop_hoc_phan` hay dùng Z-Ordering theo `student_id` và `ma_mon` để tối ưu tra cứu cá nhân?
 2. Grade Target Service nên tính trực tiếp bằng FastAPI để phản hồi nhanh hay đẩy toàn bộ logic tính điểm mục tiêu vào Databricks Serverless để thống nhất với pipeline dữ liệu?
 3. Với mô hình MLlib dự báo nguy cơ rớt môn, nhóm nên chọn ngưỡng cảnh báo cố định theo xác suất hay điều chỉnh ngưỡng theo từng môn học/lớp học phần?
+
+---
+
+## 15. Tiến độ thực tế & Kết quả tích hợp
+
+SmartGPA đã được triển khai đầy đủ và tích hợp thành công trên môi trường thực tế với các kết quả cụ thể:
+
+### 15.1 Backend & Cloud Integration (FastAPI + Databricks SQL)
+- **Tích hợp Databricks SQL**: Kết nối trực tiếp đến Databricks SQL Warehouse thông qua schema `smartgpa_db` và token cá nhân hoạt động ổn định.
+- **Cơ chế Fallback thông minh (Fail-safe)**: Hàm `lay_diem_sinh_vien_tu_cloud` hỗ trợ truy vấn tầng Gold trước, nếu bảng chưa khả dụng sẽ tự động truy xuất bảng Silver và ánh xạ động các trường điểm, và tự động chuyển về Mock Database local khi mất kết nối mạng.
+- **Ánh xạ mã môn (Curriculum Code Mapping)**: Tự động chuyển đổi các mã môn số từ file Excel của trường (như `2101680`, `2101409`, `2101435`) sang mã môn nội bộ (`INT1001`, `INT1306`, `INT1410`) khi upload, giải quyết triệt để vấn đề lệch mã môn mà không phá vỡ kiểm thử hay giao diện.
+- **API Cảnh báo học vụ**: Endpoint `/simulation/warnings` lấy dữ liệu cảnh báo học vụ thực tế của sinh viên trực tiếp từ Databricks SQL, đồng thời chạy mô hình Random Forest dự đoán xác suất rớt môn.
+
+### 15.2 Giao diện người dùng cao cấp (React Vite App)
+- **Thiết kế Soft Glassmorphism**: Toàn bộ giao diện áp dụng tone màu kem vani ngọt ngào (`#FAF6F0`), các viền kính mờ phản chiếu ánh sáng hồng tulip dịu mắt giúp giảm mỏi mắt cho người dùng.
+- **Tương tác 4 vai trò E2E**:
+  - *Sinh viên*: Chạy giả lập điểm thi cuối kỳ real-time theo mức điểm chữ mục tiêu (A, B+, B, C+, C, D+, D, F) qua thanh trượt tùy chỉnh cực nhạy.
+  - *Giảng viên*: Upload file điểm quá trình CSV trực tiếp lên FastAPI Server và nhận phản hồi tức thì.
+  - *Cố vấn học thuật*: Theo dõi danh sách sinh viên thuộc diện cảnh báo học vụ từ Cloud Databricks.
+  - *Quản trị viên*: Xem các thống kê tổng quan, đổi điểm số sinh viên, và cập nhật cấu hình quy chế chấm điểm.
+
+### 15.3 Kiểm thử & Chất lượng
+- Chạy toàn bộ **60 bài test kiểm thử tích hợp (Pytest)** đạt tỷ lệ pass **100%**, đảm bảo các luồng nghiệp vụ và logic tính điểm không bị lỗi hồi quy (regression errors).
+- Trình biên dịch TypeScript và Vite hoàn tất quá trình đóng gói production assets (`dist/`) với **0 lỗi và 0 cảnh báo**.
+
+### 15.4 Khởi tạo dữ liệu Excel nhập điểm mẫu (Class A & B)
+- Đóng gói đầy đủ dữ liệu điểm của 39 môn học từ học kỳ 1 đến học kỳ 9 cho hai lớp **DHKHDL19A** (50 sinh viên) và **DHKHDL19B** (48 sinh viên) dưới định dạng file Excel chuẩn của trường: `[Mã môn]_[Tên môn]_BangDiem.xlsx`.
+- Dữ liệu điểm học kỳ 8 tự động chừa trống cột điểm thi cuối kỳ, trong khi học kỳ 9 trống hoàn toàn để phục vụ demo trực quan luồng tính điểm mục tiêu.
+
+

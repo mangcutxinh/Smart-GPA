@@ -1,1 +1,1 @@
-# SmartGPA Core Package
+﻿# SmartGPA Core Package

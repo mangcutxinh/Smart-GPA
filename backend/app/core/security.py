@@ -1,4 +1,4 @@
-"""
+﻿"""
 SmartGPA – Security Utilities
 - bcrypt password hashing
 - JWT Access Token (30 phút) + Refresh Token (7 ngày)

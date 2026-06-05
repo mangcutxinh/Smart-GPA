@@ -173,3 +173,46 @@ def upload_and_run_pipeline(filename: str, contents: bytes) -> Dict[str, Any]:
         "state": run.get("state"),
         "output": output,
     }
+
+
+def upload_and_trigger_pipeline(filename: str, contents: bytes) -> Dict[str, Any]:
+    csv_path = upload_csv_to_workspace_files(filename, contents)
+    run_now = run_pipeline_job(csv_path)
+    run_id = run_now.get("run_id")
+    if not run_id:
+        raise DatabricksPipelineError(f"Databricks run-now response missing run_id: {run_now}")
+    return {
+        "csv_path": csv_path,
+        "workspace_path": csv_path.removeprefix("file:/Workspace"),
+        "run_id": run_id,
+        "pipeline_status": "RUNNING",
+    }
+
+
+
+def check_run_status(run_id: int) -> Dict[str, Any]:
+    with httpx.Client(timeout=10) as client:
+        response = client.get(
+            f"{_api_base()}/api/2.2/jobs/runs/get",
+            headers=_headers(),
+            params={"run_id": run_id},
+        )
+        if response.status_code >= 400:
+            raise DatabricksPipelineError(f"Databricks run status check failed: {response.text}")
+        run = response.json()
+        state = run.get("state", {})
+        life_cycle_state = state.get("life_cycle_state")
+        result_state = state.get("result_state")
+        
+        status_str = "RUNNING"
+        if life_cycle_state in {"TERMINATED", "SKIPPED", "INTERNAL_ERROR"}:
+            if result_state == "SUCCESS":
+                status_str = "SUCCESS"
+            else:
+                status_str = "FAILED"
+        return {
+            "status": status_str,
+            "life_cycle_state": life_cycle_state,
+            "result_state": result_state,
+            "message": state.get("state_message") or ""
+        }

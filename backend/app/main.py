@@ -2,11 +2,12 @@
 SmartGPA API – FastAPI Application Entry Point
 Module: feature/auth-gateway + feature/simulation-engine
 Author: Chan (SOA Backend Architect)
+# Force reload for CSV database update: 2026-06-05
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, simulation, upload, admin
+from app.routers import auth, simulation, upload, admin, lecturer
 
 # ─── App instance ─────────────────────────────────────────────
 app = FastAPI(
@@ -30,9 +31,9 @@ Nền tảng hướng dịch vụ (SOA) kết hợp **FastAPI** + **Databricks C
 
 | Email | Password | Vai trò |
 |---|---|---|
-| student@smartgpa.edu | password123 | Student |
-| thibinh.gv1001@smartgpa.edu | password123 | Lecturer |
-| admin@smartgpa.edu | password123 | Admin |
+| student@smartgpa.edu | Sv@123 | Student |
+| thibinh.gv1001@smartgpa.edu | Gv@123 | Lecturer |
+| admin@smartgpa.edu | Admin@123 | Admin |
 
 ---
 
@@ -75,7 +76,11 @@ Nền tảng hướng dịch vụ (SOA) kết hợp **FastAPI** + **Databricks C
 # ─── CORS ────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # Production: giới hạn domain cụ thể
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -86,6 +91,7 @@ app.include_router(auth.router)
 app.include_router(simulation.router)
 app.include_router(upload.router)
 app.include_router(admin.router)
+app.include_router(lecturer.router)
 
 
 # ─── System endpoints ─────────────────────────────────────────
@@ -101,9 +107,9 @@ def root() -> dict:
             "simulation_engine": "/simulation",
         },
         "demo_accounts": {
-            "student": "student@smartgpa.edu / password123",
-            "lecturer": "thibinh.gv1001@smartgpa.edu / password123",
-            "admin": "admin@smartgpa.edu / password123",
+            "student": "student@smartgpa.edu / Sv@123",
+            "lecturer": "thibinh.gv1001@smartgpa.edu / Gv@123",
+            "admin": "admin@smartgpa.edu / Admin@123",
         },
     }
 

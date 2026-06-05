@@ -54,7 +54,7 @@ class TestTC01Authorization:
         # Login as admin
         login_resp = client.post("/auth/login", json={
             "email": "admin@smartgpa.edu",
-            "password": "password123",
+            "password": "Admin@123",
         })
         assert login_resp.status_code == 200
         admin_token = login_resp.json()["access_token"]
@@ -77,7 +77,7 @@ class TestTC01Authorization:
         """Lecturer cũng không được phép gọi /simulation/simulate → 403"""
         login_resp = client.post("/auth/login", json={
             "email": "thibinh.gv1001@smartgpa.edu",
-            "password": "password123",
+            "password": "Gv@123",
         })
         lecturer_token = login_resp.json()["access_token"]
 
@@ -176,7 +176,7 @@ class TestLogin:
     def test_login_success_returns_tokens(self):
         resp = client.post("/auth/login", json={
             "email": "student@smartgpa.edu",
-            "password": "password123",
+            "password": "Sv@123",
         })
         assert resp.status_code == 200
         data = resp.json()
@@ -204,13 +204,13 @@ class TestLogin:
     def test_login_all_demo_accounts(self):
         """Tất cả 4 tài khoản demo đều login được"""
         accounts = [
-            "student@smartgpa.edu",
-            "thibinh.gv1001@smartgpa.edu",
-            "admin@smartgpa.edu",
+            ("student@smartgpa.edu", "Sv@123"),
+            ("thibinh.gv1001@smartgpa.edu", "Gv@123"),
+            ("admin@smartgpa.edu", "Admin@123"),
         ]
-        for email in accounts:
+        for email, password in accounts:
             resp = client.post("/auth/login", json={
-                "email": email, "password": "password123",
+                "email": email, "password": password,
             })
             assert resp.status_code == 200, f"Login failed for {email}"
 
@@ -222,8 +222,9 @@ class TestLogin:
 class TestTokens:
 
     def _login(self, email: str = "admin@smartgpa.edu") -> dict:
+        password = "Admin@123" if "admin" in email else ("Gv@123" if "gv" in email else "Sv@123")
         resp = client.post("/auth/login", json={
-            "email": email, "password": "password123",
+            "email": email, "password": password,
         })
         return resp.json()
 
@@ -270,7 +271,7 @@ class TestGetMe:
 
     def test_get_me_student(self):
         login_resp = client.post("/auth/login", json={
-            "email": "student@smartgpa.edu", "password": "password123",
+            "email": "student@smartgpa.edu", "password": "Sv@123",
         })
         token = login_resp.json()["access_token"]
 

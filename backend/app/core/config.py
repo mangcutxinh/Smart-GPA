@@ -1,4 +1,4 @@
-"""
+﻿"""
 SmartGPA – Application Configuration
 Load settings từ biến môi trường hoặc file .env
 """

@@ -1,4 +1,4 @@
-"""
+﻿"""
 SmartGPA – Pydantic Schemas (Request / Response Models)
 """
 from datetime import datetime

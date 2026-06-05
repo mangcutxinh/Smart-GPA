@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 SmartGPA – Admin Router
 Endpoints quản lý học kỳ, danh sách môn học, phân công giảng viên.
@@ -23,7 +24,7 @@ from app.models.schemas import (
     ProjectInfoUpdate, TimelineUpdateCreate, AdminGradeUpdate,
     WarningSendRequest, GradingRulesUpdate
 )
-from app.db.fake_db import (
+from app.db.real_db import (
     CURRENT_SEMESTER, COURSES_DB, ASSIGNMENTS_DB, USERS_DB,
     DEPARTMENTS_DB, INSTITUTES_DB, MAJORS_DB,
     ACTIVITY_LOGS, PROJECT_INFO, TIMELINE_UPDATES, WARNING_ACTIONS,
@@ -459,6 +460,143 @@ def delete_lecturer(lecturer_id: str, current_user: UserOut = _admin_dep):
     deleted_user = USERS_DB.pop(target_email)
     _append_admin_event(current_user, "lecturer_delete", lecturer_id, deleted_user.get("full_name", lecturer_id), f"Xoa tai khoan giang vien {target_email}; xoa {len(to_remove)} phan cong")
     return {"message": f"Đã xóa giảng viên '{lecturer_id}' và {len(to_remove)} phân công liên quan thành công."}
+
+from pydantic import BaseModel, EmailStr
+from typing import Optional
+
+class StudentCreateBody(BaseModel):
+    student_id: str
+    email: EmailStr
+    password: str = "Sv@123"
+    full_name: str
+    faculty_id: Optional[str] = "CNTT"
+    major_id: Optional[str] = "KHDL"
+    lop_hoc: Optional[str] = "DHKHDL19A"
+    gioi_tinh: Optional[str] = "Nam"
+    ngay_sinh: Optional[str] = ""
+
+class StudentUpdateBody(BaseModel):
+    email: EmailStr
+    full_name: str
+    faculty_id: Optional[str] = None
+    major_id: Optional[str] = None
+    lop_hoc: Optional[str] = None
+    gioi_tinh: Optional[str] = None
+    ngay_sinh: Optional[str] = None
+    is_active: Optional[bool] = None
+
+# ─── STUDENT INFO CRUD ────────────────────────────────────────
+
+@router.get("/students", summary="Lấy danh sách sinh viên")
+def get_students(_=_admin_dep):
+    return [
+        {
+            "id": u["id"],
+            "student_id": u["student_id"],
+            "full_name": u["full_name"],
+            "email": u["email"],
+            "username": u["username"],
+            "faculty_id": u.get("faculty_id"),
+            "major_id": u.get("major_id"),
+            "lop_hoc": u.get("lop_hoc"),
+            "gioi_tinh": u.get("gioi_tinh"),
+            "ngay_sinh": u.get("ngay_sinh"),
+            "is_active": u.get("is_active", True)
+        }
+        for u in USERS_DB.values()
+        if u.get("role") == "student" and u.get("student_id")
+    ]
+
+
+@router.post("/students", response_model=UserOut, summary="Thêm sinh viên mới")
+def add_student(body: StudentCreateBody, current_user: UserOut = _admin_dep):
+    if body.email in USERS_DB:
+        raise HTTPException(status_code=400, detail="Email này đã tồn tại trên hệ thống.")
+    
+    if any(u.get("student_id") == body.student_id for u in USERS_DB.values()):
+        raise HTTPException(status_code=400, detail=f"Mã sinh viên '{body.student_id}' đã tồn tại.")
+
+    username = body.student_id.lower()
+    if username in USERS_DB:
+         raise HTTPException(status_code=400, detail=f"Username '{username}' đã tồn tại.")
+
+    new_user = {
+        "id": str(uuid4()),
+        "email": body.email,
+        "username": username,
+        "password_hash": hash_password(body.password),
+        "full_name": body.full_name,
+        "role": "student",
+        "is_active": True,
+        "created_at": datetime.now(timezone.utc),
+        "student_id": body.student_id,
+        "faculty_id": body.faculty_id,
+        "major_id": body.major_id,
+        "lop_hoc": body.lop_hoc,
+        "gioi_tinh": body.gioi_tinh,
+        "ngay_sinh": body.ngay_sinh,
+        "notifications": [],
+        "must_change_password": False,
+        "email_verified": True,
+    }
+    USERS_DB[username] = new_user
+    _append_admin_event(current_user, "student_create", body.student_id, body.full_name, f"Them tai khoa sinh vien {body.email}")
+    return new_user
+
+
+@router.put("/students/{student_id}", response_model=UserOut, summary="Cập nhật sinh viên")
+def update_student(student_id: str, body: StudentUpdateBody, current_user: UserOut = _admin_dep):
+    target_user = None
+    target_username = None
+    for username, u in USERS_DB.items():
+        if u.get("role") == "student" and u.get("student_id") == student_id:
+            target_user = u
+            target_username = username
+            break
+            
+    if not target_user:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy sinh viên '{student_id}'.")
+        
+    if body.email != target_user.get("email") and body.email in USERS_DB:
+        raise HTTPException(status_code=400, detail="Email mới đã được sử dụng bởi người dùng khác.")
+        
+    target_user["full_name"] = body.full_name
+    target_user["email"] = body.email
+    if body.faculty_id is not None:
+        target_user["faculty_id"] = body.faculty_id
+    if body.major_id is not None:
+        target_user["major_id"] = body.major_id
+    if body.lop_hoc is not None:
+        target_user["lop_hoc"] = body.lop_hoc
+    if body.gioi_tinh is not None:
+        target_user["gioi_tinh"] = body.gioi_tinh
+    if body.ngay_sinh is not None:
+        target_user["ngay_sinh"] = body.ngay_sinh
+    if body.is_active is not None:
+        target_user["is_active"] = body.is_active
+    
+    _append_admin_event(current_user, "student_update", student_id, body.full_name, f"Cap nhat tai khoan sinh vien {student_id}")
+    return target_user
+
+
+@router.delete("/students/{student_id}", summary="Xóa sinh viên")
+def delete_student(student_id: str, current_user: UserOut = _admin_dep):
+    target_username = None
+    for username, u in USERS_DB.items():
+        if u.get("role") == "student" and u.get("student_id") == student_id:
+            target_username = username
+            break
+            
+    if not target_username:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy sinh viên '{student_id}'.")
+        
+    keys_to_delete = [k for k in MOCK_GOLD_DB if isinstance(k, tuple) and k[0] == student_id]
+    for k in keys_to_delete:
+        MOCK_GOLD_DB.pop(k, None)
+        
+    deleted_user = USERS_DB.pop(target_username)
+    _append_admin_event(current_user, "student_delete", student_id, deleted_user.get("full_name", student_id), f"Xoa tai khoan sinh vien {student_id}; xoa {len(keys_to_delete)} ban ghi diem")
+    return {"message": f"Đã xóa sinh viên '{student_id}' và {len(keys_to_delete)} bản ghi điểm liên quan thành công."}
 
 
 # ─── DEPARTMENTS ──────────────────────────────────────────────

@@ -11,13 +11,13 @@ import sys
 import uuid
 import logging
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
 
 from app.core.dependencies import require_role
 from app.models.schemas import UserOut, UserRole
 from app.db.databricks_db import save_uploaded_scores_mock
-from app.services.databricks_jobs import DatabricksPipelineError, upload_and_run_pipeline
+from app.services.databricks_jobs import DatabricksPipelineError, upload_and_run_pipeline, upload_and_trigger_pipeline
 
 router = APIRouter(prefix="/upload", tags=["Upload Hub"])
 logger = logging.getLogger("smartgpa.upload")
@@ -44,10 +44,10 @@ def parse_score_list(val: str) -> List[float]:
         raise ValueError(f"Không thể chuyển đổi chuỗi điểm '{val}' thành danh sách số.")
 
 
-def _pad_scores(values: List[float], size: int) -> List[float | None]:
+def _pad_scores(values: List[float], size: int) -> List[Optional[float]]:
     if not values:
         return [None] * size
-    padded: List[float | None] = list(values[:size])
+    padded: List[Optional[float]] = list(values[:size])
     while len(padded) < size:
         padded.append(values[-1])
     return padded
@@ -70,6 +70,7 @@ def build_databricks_pipeline_csv(rows: List[Dict[str, Any]]) -> bytes:
         "thuc_hanh_1",
         "thuc_hanh_2",
         "thuc_hanh_3",
+        "diem_cuoi_ky",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
     writer.writeheader()
@@ -114,6 +115,7 @@ def build_databricks_pipeline_csv(rows: List[Dict[str, Any]]) -> bytes:
             "thuc_hanh_1": th1,
             "thuc_hanh_2": th2,
             "thuc_hanh_3": th3,
+            "diem_cuoi_ky": row.get("diem_cuoi_ky"),
         })
 
     return output.getvalue().encode("utf-8")
@@ -150,32 +152,184 @@ async def upload_file(
     # Đọc nội dung file
     contents = await file.read()
     
-    # Ở phiên bản MVP này, ta tập trung xử lý CSV chuẩn để đảm bảo hiệu suất cực cao và không phụ thuộc openpyxl
-    if file_ext == ".xlsx":
-        # Hướng dẫn giảng viên sử dụng CSV nếu chưa cấu hình đầy đủ thư viện đọc Excel
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Để tối ưu hóa hiệu suất truyền tin, vui lòng lưu file Excel thành định dạng .csv (Comma Separated Values) và thử lại."
-        )
+    headers = []
+    rows_list = []
+    decoded = ""
+    ma_lop_hoc_phan_parsed = None
 
-    # 2. Xử lý và Validate tệp CSV
-    try:
-        decoded = contents.decode("utf-8-sig")  # utf-8-sig để xử lý BOM nếu file từ Excel CSV
-    except UnicodeDecodeError:
+    if file_ext == ".csv":
         try:
-            decoded = contents.decode("latin-1")
-        except Exception:
+            decoded = contents.decode("utf-8-sig")  # utf-8-sig để xử lý BOM nếu file từ Excel CSV
+        except UnicodeDecodeError:
+            try:
+                decoded = contents.decode("latin-1")
+            except Exception:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Không thể đọc mã hóa của file. Vui lòng đảm bảo file được lưu ở định dạng UTF-8."
+                )
+        reader = csv.DictReader(io.StringIO(decoded))
+        headers = reader.fieldnames or []
+        headers = [h.strip() for h in headers]
+        rows_list = list(reader)
+    else:
+        # Xử lý tệp XLSX
+        try:
+            import openpyxl
+            import re
+            wb = openpyxl.load_workbook(io.BytesIO(contents), data_only=True)
+            ws = wb.active
+            
+            # Kiểm tra xem có phải định dạng bảng điểm mẫu của IUH không
+            is_iuh_template = False
+            ma_mon_parsed = None
+            ten_mon_parsed = None
+            header_row_idx = None
+            
+            for r_idx, row in enumerate(ws.iter_rows(values_only=True), start=1):
+                if r_idx > 12:  # Chỉ quét 12 dòng đầu
+                    break
+                for c_idx, val in enumerate(row, start=1):
+                    if val and isinstance(val, str):
+                        if "Lớp học phần:" in val:
+                            m = re.search(r"Lớp học phần:\s*\[([^\]]+)\]\s*-\s*([^\(]+)(?:\((.+)\))?", val)
+                            if m:
+                                ma_mon_parsed = m.group(1).strip()
+                                from app.db.real_db import COURSE_ID_MAP
+                                ma_mon_parsed = COURSE_ID_MAP.get(ma_mon_parsed, ma_mon_parsed)
+                                ten_mon_parsed = m.group(2).strip()
+                                if m.group(3):
+                                    ma_lop_hoc_phan_parsed = m.group(3).strip()
+                                is_iuh_template = True
+                        if val.strip() == "Mã sinh viên":
+                            header_row_idx = r_idx
+
+            if is_iuh_template and header_row_idx:
+                # ─── LOGIC PARSE THEO MẪU IUH ─────────────────────────────────
+                header_row = [cell.value for cell in ws[header_row_idx]]
+                parent_row = [cell.value for cell in ws[header_row_idx - 1]] if header_row_idx > 1 else []
+                
+                student_id_col = None
+                ho_dem_col = None
+                ten_col = None
+                lop_hoc_col = None
+                
+                for c_idx, h in enumerate(header_row):
+                    if h:
+                        h_str = str(h).strip()
+                        if h_str == "Mã sinh viên":
+                            student_id_col = c_idx
+                        elif h_str == "Họ đệm":
+                            ho_dem_col = c_idx
+                        elif h_str == "Tên":
+                            ten_col = c_idx
+                        elif h_str == "Lớp học":
+                            lop_hoc_col = c_idx
+                
+                # Xác định loại môn học
+                has_th = False
+                for p in parent_row:
+                    if p and "Thực hành" in str(p):
+                        has_th = True
+                        break
+
+                # Kiểm tra xem có dữ liệu điểm thực hành thực tế không
+                if has_th:
+                    has_actual_th_data = False
+                    start_row = header_row_idx + 2
+                    for r_idx in range(start_row, ws.max_row + 1):
+                        row_vals = [cell.value for cell in ws[r_idx]]
+                        if len(row_vals) > 12:
+                            for col_idx in [10, 11, 12]:
+                                val = row_vals[col_idx]
+                                if val is not None and str(val).strip() != "":
+                                    has_actual_th_data = True
+                                    break
+                        if has_actual_th_data:
+                            break
+                    if not has_actual_th_data:
+                        logger.info("Môn học có cột Thực hành nhưng không có dữ liệu điểm thực hành. Chuyển sang ly_thuyet.")
+                        has_th = False
+
+                loai_hp = "tich_hop" if has_th else "ly_thuyet"
+                
+                # Cột điểm theo cấu trúc chuẩn của IUH
+                giua_ky_col = 7
+                tx_cols = [8, 9]
+                th_cols = [10, 11, 12]
+                cuoi_ky_col = 14
+                
+                # Thiết lập giả lập headers để vượt qua validation
+                headers = ["student_id", "student_name", "ma_mon", "ten_mon", "ma_lop_hoc_phan", "loai_hoc_phan", "diem_giua_ky", "diem_cuoi_ky", "diem_thong_thuong", "diem_thuc_hanh_hien_tai", "diem_thuc_hanh_tich_hop", "diem_giua_ky_lt", "diem_thuong_ky_lt_list"]
+                
+                rows_list = []
+                start_row = header_row_idx + 2
+                for r_idx in range(start_row, ws.max_row + 1):
+                    row_vals = [cell.value for cell in ws[r_idx]]
+                    if len(row_vals) <= (student_id_col or 0):
+                        continue
+                    sv_id = row_vals[student_id_col]
+                    if not sv_id:
+                        continue
+                    sv_id_str = str(sv_id).strip()
+                    if not sv_id_str.isdigit():
+                        continue
+                        
+                    ho_dem = str(row_vals[ho_dem_col] or "").strip() if ho_dem_col is not None else ""
+                    ten = str(row_vals[ten_col] or "").strip() if ten_col is not None else ""
+                    full_name = f"{ho_dem} {ten}".strip()
+                    lop_hoc = str(row_vals[lop_hoc_col] or ma_lop_hoc_phan_parsed or "").strip() if lop_hoc_col is not None else (ma_lop_hoc_phan_parsed or "")
+                    
+                    def clean_val(val):
+                        if val is None or str(val).strip() == "" or str(val).strip().lower() == "nan":
+                            return ""
+                        return str(val).strip()
+                        
+                    gk = clean_val(row_vals[giua_ky_col])
+                    tx_scores = [clean_val(row_vals[c]) for c in tx_cols]
+                    tx_scores = [s for s in tx_scores if s != ""]
+                    th_scores = [clean_val(row_vals[c]) for c in th_cols]
+                    th_scores = [s for s in th_scores if s != ""]
+                    ck = clean_val(row_vals[cuoi_ky_col])
+                    
+                    row_dict = {
+                        "student_id": sv_id_str,
+                        "student_name": full_name,
+                        "ma_mon": ma_mon_parsed,
+                        "ten_mon": ten_mon_parsed,
+                        "ma_lop_hoc_phan": lop_hoc,
+                        "loai_hoc_phan": loai_hp,
+                    }
+                    if loai_hp == "ly_thuyet":
+                        row_dict["diem_giua_ky"] = gk
+                        row_dict["diem_cuoi_ky"] = ck
+                        row_dict["diem_thong_thuong"] = ";".join(tx_scores)
+                    elif loai_hp == "thuc_hanh":
+                        row_dict["diem_thuc_hanh_hien_tai"] = ";".join(th_scores)
+                    else: # tich_hop
+                        row_dict["diem_thuc_hanh_tich_hop"] = th_scores[0] if th_scores else ""
+                        row_dict["diem_giua_ky_lt"] = gk
+                        row_dict["diem_thuong_ky_lt_list"] = ";".join(tx_scores)
+                        row_dict["diem_cuoi_ky"] = ck
+                        
+                    rows_list.append(row_dict)
+            else:
+                # ─── BẢNG ĐIỂM DẠNG API / CHUẨN ĐƠN GIẢN ──────────────────────
+                headers = [str(cell.value).strip() if cell.value is not None else "" for cell in ws[1]]
+                for row in ws.iter_rows(min_row=2, values_only=True):
+                    if any(v is not None for v in row):
+                        row_dict = {}
+                        for i, h in enumerate(headers):
+                            if h and i < len(row):
+                                val = row[i]
+                                row_dict[h] = str(val).strip() if val is not None else ""
+                        rows_list.append(row_dict)
+        except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Không thể đọc mã hóa của file. Vui lòng đảm bảo file được lưu ở định dạng UTF-8."
+                detail=f"Không thể đọc file XLSX: {str(e)}"
             )
 
-    reader = csv.DictReader(io.StringIO(decoded))
-    headers = reader.fieldnames or []
-    
-    # Loại bỏ khoảng trắng thừa ở tiêu đề
-    headers = [h.strip() for h in headers]
-    
     # Các trường bắt buộc phải có trong file điểm
     required_cols = ["student_id", "ma_mon", "ma_lop_hoc_phan", "loai_hoc_phan"]
     missing_cols = [col for col in required_cols if col not in headers]
@@ -190,10 +344,12 @@ async def upload_file(
     errors = []
 
     # Duyệt từng dòng điểm để thực hiện validate nghiệp vụ (Fail-Fast)
-    for idx, row in enumerate(reader, start=2):  # Dòng 1 là tiêu đề, nên data bắt đầu từ dòng 2
+    for idx, row in enumerate(rows_list, start=2):  # Dòng 1 là tiêu đề, nên data bắt đầu từ dòng 2
         try:
             student_id = (row.get("student_id") or "").strip()
             ma_mon = (row.get("ma_mon") or "").strip()
+            from app.db.real_db import COURSE_ID_MAP
+            ma_mon = COURSE_ID_MAP.get(ma_mon, ma_mon)
             ma_lop_hoc = (row.get("ma_lop_hoc_phan") or "").strip()
             loai_hp = (row.get("loai_hoc_phan") or "").strip().lower()
 
@@ -222,8 +378,7 @@ async def upload_file(
                 "ten_mon": (row.get("ten_mon") or row.get("subject_name") or "").strip()
             }
 
-            # Helper kiểm tra dải điểm 0.0 - 10.0
-            def check_range(name: str, val_str: str | None) -> float | None:
+            def check_range(name: str, val_str: Optional[str]) -> Optional[float]:
                 if not val_str or val_str.strip() == "":
                     return None
                 try:
@@ -266,9 +421,10 @@ async def upload_file(
                         continue
 
             elif loai_hp == "tich_hop":
-                # Nhận điểm TH tích hợp, thường kỳ LT (list) và giữa kỳ LT
+                # Nhận điểm TH tích hợp, thường kỳ LT (list), giữa kỳ LT và cuối kỳ LT
                 parsed_data["diem_thuc_hanh_tich_hop"] = check_range("thực hành tích hợp", row.get("diem_thuc_hanh_tich_hop"))
                 parsed_data["diem_giua_ky_lt"] = check_range("giữa kỳ lý thuyết", row.get("diem_giua_ky_lt"))
+                parsed_data["diem_cuoi_ky"] = check_range("cuối kỳ", row.get("diem_cuoi_ky"))
                 
                 tk_lt_str = row.get("diem_thuong_ky_lt_list") or row.get("diem_thuong_ky_lt") or ""
                 if tk_lt_str:
@@ -299,14 +455,18 @@ async def upload_file(
     # 4. Tránh ghi đè file trên Cloud Storage bằng cách đặt tên file độc nhất
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     random_uuid = uuid.uuid4().hex[:6]
-    ma_lop_safe = parsed_rows[0]["ma_lop_hoc_phan"] if parsed_rows else "unknown"
-    unique_filename = f"diem_thao_{ma_lop_safe}_{timestamp}_{random_uuid}.csv"
+    ma_lop_safe = ma_lop_hoc_phan_parsed or (parsed_rows[0]["ma_lop_hoc_phan"] if parsed_rows else "unknown")
+    unique_filename = f"diem_thao_{ma_lop_safe}_{timestamp}_{random_uuid}{file_ext}"
     saved_path = os.path.join(MOCK_STORAGE_DIR, unique_filename)
 
     # Lưu file thô vào Mock Storage
     try:
-        with open(saved_path, "w", encoding="utf-8") as f:
-            f.write(decoded)
+        if file_ext == ".xlsx":
+            with open(saved_path, "wb") as f:
+                f.write(contents)
+        else:
+            with open(saved_path, "w", encoding="utf-8") as f:
+                f.write(decoded)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -321,15 +481,53 @@ async def upload_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi khi đồng bộ dữ liệu upload vào mock database: {str(e)}",
         )
-    databricks_filename = unique_filename.replace(".csv", "_databricks.csv")
+
+    # 5b. Tự động đăng ký phân công GV với môn vừa upload (nếu chưa có)
+    from app.db.real_db import ASSIGNMENTS_DB, COURSES_DB
+    first_parsed = parsed_rows[0] if parsed_rows else {}
+    uploaded_ma_mon = first_parsed.get("ma_mon", "")
+    uploaded_lop = ma_lop_safe
+    if uploaded_ma_mon:
+        # Thêm vào COURSES_DB nếu môn chưa có
+        if not any(c.get("id") == uploaded_ma_mon for c in COURSES_DB):
+            COURSES_DB.append({
+                "id": uploaded_ma_mon,
+                "name": first_parsed.get("ten_mon") or f"Môn học {uploaded_ma_mon}",
+                "type": first_parsed.get("loai_hoc_phan", "ly_thuyet"),
+                "credits": (first_parsed.get("so_chi_lt") or 2) + (first_parsed.get("so_chi_th") or 0),
+                "chi_lt": first_parsed.get("so_chi_lt") or 2,
+                "chi_th": first_parsed.get("so_chi_th") or 0,
+                "faculty_id": "CNTT",
+                "major_id": "KHDL",
+                "is_compulsory": True,
+                "hoc_ky": 1,
+            })
+        # Thêm phân công nếu chưa có
+        gv_id = current_user.lecturer_id or current_user.email
+        has_assignment = any(
+            a.get("lecturer_id") == gv_id and a.get("ma_mon") == uploaded_ma_mon
+            for a in ASSIGNMENTS_DB
+        )
+        if not has_assignment:
+            import uuid as _uuid
+            ASSIGNMENTS_DB.append({
+                "id": f"asgn_{_uuid.uuid4().hex[:8]}",
+                "lecturer_id": gv_id,
+                "ma_mon": uploaded_ma_mon,
+                "ma_lop": uploaded_lop,
+                "hoc_ky": "HKII 2025-2026",
+            })
+            logger.info(f"Auto-registered assignment: GV {gv_id} → môn {uploaded_ma_mon}")
+
+    databricks_filename = unique_filename.replace(file_ext, "_databricks.csv")
     databricks_payload = build_databricks_pipeline_csv(parsed_rows)
 
     try:
-        databricks_result = upload_and_run_pipeline(databricks_filename, databricks_payload)
+        databricks_result = upload_and_trigger_pipeline(databricks_filename, databricks_payload)
     except DatabricksPipelineError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Databricks pipeline failed: {str(e)}",
+            detail=f"Databricks pipeline failed to trigger: {str(e)}",
         )
 
     # 6. Ghi log hoạt động hệ thống (System Activity Audit Log)
@@ -355,7 +553,7 @@ async def upload_file(
         "action": "upload",
         "subject_id": actual_mon,
         "subject_name": sub_name,
-        "details": f"Nạp bảng điểm lớp {ma_lop_safe} và chạy Databricks pipeline thành công. Tệp tin: {unique_filename}.",
+        "details": f"Nạp bảng điểm lớp {ma_lop_safe} và đang khởi chạy Databricks pipeline. Tệp tin: {unique_filename}.",
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     ACTIVITY_LOGS.append(new_log)
@@ -416,20 +614,36 @@ async def upload_file(
             safe_print(f"=========================================================================\n")
 
     return {
-        "message": "Upload thành công và Databricks pipeline đã chạy xong.",
+        "message": "Upload thành công và đang khởi chạy Databricks pipeline.",
         "filename": unique_filename,
         "databricks_filename": databricks_filename,
         "records_processed": len(parsed_rows),
         "db_synced": db_synced,
         "storage_destination": databricks_result["csv_path"],
         "workspace_path": databricks_result.get("workspace_path"),
-        "pipeline_status": "COMPLETED",
+        "pipeline_status": "RUNNING",
         "databricks_run_id": databricks_result["run_id"],
-        "databricks_run_page_url": databricks_result.get("run_page_url"),
-        "databricks_state": databricks_result.get("state"),
-        "databricks_output": databricks_result.get("output"),
         "log_id": new_log["id"]
     }
+
+
+@router.get(
+    "/status/{run_id}",
+    summary="Kiểm tra trạng thái chạy Databricks Pipeline",
+    description="Truy vấn trạng thái hiện tại (RUNNING, SUCCESS, FAILED) của run_id trên Databricks.",
+)
+def get_pipeline_status(
+    run_id: int,
+    current_user: UserOut = Depends(require_role(UserRole.LECTURER, UserRole.ADMIN)),
+) -> dict:
+    try:
+        from app.services.databricks_jobs import check_run_status
+        return check_run_status(run_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi khi kiểm tra trạng thái run_id {run_id}: {str(e)}",
+        )
 
 
 @router.get(

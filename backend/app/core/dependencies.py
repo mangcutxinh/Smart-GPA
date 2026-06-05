@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.security import decode_token
-from app.db.fake_db import ASSIGNMENTS_DB, find_user_by_login
+from app.db.real_db import ASSIGNMENTS_DB, find_user_by_login
 from app.models.schemas import UserOut, UserRole
 
 # HTTPBearer cấu hình auto_error=False để kiểm tra và trả lỗi 403 tương thích ngược với Unit Tests

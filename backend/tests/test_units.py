@@ -2,7 +2,7 @@
 SmartGPA Tests – Faculty, Institute, and Major CRUD operations & constraints
 """
 import pytest
-from app.db.fake_db import DEPARTMENTS_DB, INSTITUTES_DB, MAJORS_DB
+from app.db.real_db import DEPARTMENTS_DB, INSTITUTES_DB, MAJORS_DB
 
 def test_get_departments_unauthorized(client):
     # Test getting departments without auth token -> 403

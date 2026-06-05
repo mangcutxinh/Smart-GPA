@@ -14,9 +14,16 @@ client = TestClient(app)
 
 
 def _get_token(email: str) -> str:
+    if "admin" in email:
+        password = "Admin@123"
+    elif "gv" in email:
+        password = "Gv@123"
+    else:
+        password = "Sv@123"
+        
     resp = client.post("/auth/login", json={
         "email": email,
-        "password": "password123",
+        "password": password,
     })
     assert resp.status_code == 200
     return resp.json()["access_token"]
@@ -97,7 +104,19 @@ class TestUploadHubValidation:
 class TestDataIntegrationE2E:
     """Kiểm thử liên thông: Upload file điểm -> Tự động nạp Delta -> Giả lập ngược"""
 
-    def test_e2e_successful_upload_and_simulation(self):
+    def test_e2e_successful_upload_and_simulation(self, monkeypatch):
+        from app.routers import upload
+
+        def mock_upload_and_trigger_pipeline(filename, contents):
+            return {
+                "csv_path": "file:/Workspace/Shared/smartgpa_uploads/mock_file.csv",
+                "workspace_path": "/Shared/smartgpa_uploads/mock_file.csv",
+                "run_id": 12345,
+                "pipeline_status": "RUNNING",
+            }
+
+        monkeypatch.setattr(upload, "upload_and_trigger_pipeline", mock_upload_and_trigger_pipeline)
+
         # 1. Đăng nhập với tư cách Giảng viên để nạp điểm thô
         lecturer_token = _get_token("thibinh.gv1001@smartgpa.edu")
         
@@ -117,8 +136,8 @@ class TestDataIntegrationE2E:
         res = upload_resp.json()
         assert "thành công" in res["message"]
         assert "diem_thao_L01_" in res["filename"]
-        assert res["pipeline_status"] == "COMPLETED"
-        assert res["databricks_run_id"]
+        assert res["pipeline_status"] == "RUNNING"
+        assert res["databricks_run_id"] == 12345
         
         # 2. ??ng nh?p v?i t? c?ch Sinh vi?n ?? ch?y gi? l?p ?i?m t?ch h?p Databricks
         student_token = _get_token("student@smartgpa.edu")
@@ -150,7 +169,7 @@ class TestDataIntegrationE2E:
 
     def test_uploaded_scores_auto_create_student_account_and_otp_password_change(self, monkeypatch):
         from app.db.databricks_db import save_uploaded_scores_mock
-        from app.db.fake_db import PASSWORD_RESET_OTPS, USERS_DB
+        from app.db.real_db import PASSWORD_RESET_OTPS, USERS_DB
         from app.services import auth_service
 
         sent_emails = []
@@ -176,11 +195,11 @@ class TestDataIntegrationE2E:
         assert USERS_DB[username]["must_change_password"] is True
         assert USERS_DB[username]["email_verified"] is False
 
-        login_resp = client.post("/auth/login", json={"email": username, "password": "password123"})
+        login_resp = client.post("/auth/login", json={"email": username, "password": "Sv@123"})
         assert login_resp.status_code == 200
         assert login_resp.json()["must_change_password"] is True
 
-        mssv_login_resp = client.post("/auth/login", json={"email": "SV777888", "password": "password123"})
+        mssv_login_resp = client.post("/auth/login", json={"email": "SV777888", "password": "Sv@123"})
         assert mssv_login_resp.status_code == 200
 
         otp_resp = client.post("/auth/password/request-otp", json={
@@ -241,3 +260,62 @@ class TestDataIntegrationE2E:
         # Thử truy vấn SV không tồn tại
         res_none = lay_diem_sinh_vien_tu_cloud("SV_KHONG_TON_TAI", "INT1306")
         assert res_none is None
+
+    def test_upload_iuh_xlsx_template(self, monkeypatch):
+        """Kiểm thử tải lên bảng điểm định dạng mẫu Excel thực của IUH và parse tự động"""
+        from app.routers import upload
+        import openpyxl
+        
+        def mock_upload_and_trigger_pipeline(filename, contents):
+            return {
+                "csv_path": f"file:/Workspace/Shared/smartgpa_uploads/{filename}",
+                "workspace_path": f"/Shared/smartgpa_uploads/{filename}",
+                "run_id": 99999,
+                "pipeline_status": "RUNNING",
+            }
+        
+        monkeypatch.setattr(upload, "upload_and_trigger_pipeline", mock_upload_and_trigger_pipeline)
+        
+        token = _get_token("thibinh.gv1001@smartgpa.edu")
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.cell(row=5, column=2, value="Lớp học phần: [420300319257] - Kỹ năng làm việc nhóm (DHDT-VT19C)")
+        
+        parent_vals = ['STT', 'Thông tin sinh viên', '', '', '', '', '', 'Giữa kỳ', 'Thường xuyên 20%', '', 'Thực hành', '', '', 'Được dự thi', 'Cuối kỳ ', 'Ghi chú']
+        for c_idx, val in enumerate(parent_vals, start=1):
+            ws.cell(row=7, column=c_idx, value=val)
+            
+        header_vals = ['', 'Mã sinh viên', 'Họ đệm', 'Tên', 'Giới tính', 'Ngày sinh', 'Lớp học', '', 'Hệ số 1', '', '', '', '', '', '', '']
+        for c_idx, val in enumerate(header_vals, start=1):
+            ws.cell(row=8, column=c_idx, value=val)
+            
+        student_vals = ['1', '22633151', 'Nguyễn Lê Thị Tú', 'Anh', 'Nữ', '01/01/2004', 'DHDT-VT19C', '8.0', '8.0', '8.0', '8.0', '8.0', '8.0', 'x', '8.0', '']
+        for c_idx, val in enumerate(student_vals, start=1):
+            ws.cell(row=10, column=c_idx, value=val)
+            
+        file_stream = io.BytesIO()
+        wb.save(file_stream)
+        excel_content = file_stream.getvalue()
+            
+        file_payload = {
+            "file": (
+                "(420300319257) - Ky nang lam viec nhom (DHDT-VT19C) (1).xlsx", 
+                excel_content, 
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        }
+        
+        resp = client.post(
+            "/upload/file",
+            files=file_payload,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        
+        assert resp.status_code == 201
+        res = resp.json()
+        assert "thành công" in res["message"]
+        # Filename should contain the class code or class name parsed from the Excel file
+        assert "DHDT-VT19C" in res["filename"]
+        assert res["pipeline_status"] == "RUNNING"
+        assert res["databricks_run_id"] == 99999

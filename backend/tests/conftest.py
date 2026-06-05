@@ -22,7 +22,7 @@ def client():
 @pytest.fixture(scope="module")
 def student_token(client):
     resp = client.post("/auth/login", json={
-        "email": "student@smartgpa.edu", "password": "password123"
+        "email": "student@smartgpa.edu", "password": "Sv@123"
     })
     return resp.json()["access_token"]
 
@@ -30,7 +30,7 @@ def student_token(client):
 @pytest.fixture(scope="module")
 def lecturer_token(client):
     resp = client.post("/auth/login", json={
-        "email": "thibinh.gv1001@smartgpa.edu", "password": "password123"
+        "email": "thibinh.gv1001@smartgpa.edu", "password": "Gv@123"
     })
     return resp.json()["access_token"]
 
@@ -38,6 +38,6 @@ def lecturer_token(client):
 @pytest.fixture(scope="module")
 def admin_token(client):
     resp = client.post("/auth/login", json={
-        "email": "admin@smartgpa.edu", "password": "password123"
+        "email": "admin@smartgpa.edu", "password": "Admin@123"
     })
     return resp.json()["access_token"]
