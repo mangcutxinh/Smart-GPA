@@ -715,6 +715,11 @@ def get_pipeline_status(
                             synced_count += 1
                         
                         sync_gold_to_silver()
+                        try:
+                            from app.db.persistence import save_db_to_disk
+                            save_db_to_disk()
+                        except Exception as save_err:
+                            logger.error(f"Lỗi khi lưu database: {save_err}")
                         logger.info(f"Đã đồng bộ thành công {synced_count} dòng dữ liệu từ Databricks CSV về local database.")
             except Exception as sync_err:
                 logger.error(f"Lỗi khi đồng bộ kết quả Databricks CSV về DB local: {sync_err}", exc_info=True)

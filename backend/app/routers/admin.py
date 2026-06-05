@@ -37,6 +37,16 @@ router = APIRouter(prefix="/admin", tags=["Admin Management"])
 _admin_dep = Depends(require_role(UserRole.ADMIN))
 
 
+def _save_db():
+    try:
+        from app.db.persistence import save_db_to_disk
+        save_db_to_disk()
+    except Exception as e:
+        import logging
+        logging.getLogger("smartgpa.admin").error(f"Loi khi sao luu database: {e}")
+
+
+
 def _now_str() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -61,6 +71,7 @@ def _append_admin_event(actor: UserOut, action: str, subject_id: str, subject_na
         "actor_email": actor.email,
         "timestamp": event["timestamp"],
     })
+    _save_db()
     return event
 
 
@@ -145,6 +156,7 @@ def update_semester(body: SemesterConfig, _=_admin_dep):
     CURRENT_SEMESTER["ma_hoc_ky"] = body.ma_hoc_ky.strip()
     CURRENT_SEMESTER["nam_hoc"] = body.nam_hoc.strip()
     CURRENT_SEMESTER["display"] = f"{body.ma_hoc_ky.strip()} {body.nam_hoc.strip()}"
+    _save_db()
     return CURRENT_SEMESTER
 
 
@@ -155,6 +167,7 @@ def reset_semester(body: SemesterConfig, _=_admin_dep):
     CURRENT_SEMESTER["nam_hoc"] = body.nam_hoc.strip()
     CURRENT_SEMESTER["display"] = f"{body.ma_hoc_ky.strip()} {body.nam_hoc.strip()}"
     ASSIGNMENTS_DB.clear()
+    _save_db()
     return {"message": f"Đã chuyển sang học kỳ mới: {CURRENT_SEMESTER['display']}. Toàn bộ phân công đã được xóa.", "hoc_ky": CURRENT_SEMESTER["display"]}
 
 
@@ -259,6 +272,7 @@ def import_courses(file: UploadFile = File(...), _=_admin_dep):
             detail={"message": "Dữ liệu tệp chứa một số dòng lỗi.", "errors": errors[:15]}
         )
         
+    _save_db()
     return {
         "message": f"Nhập tệp chương trình khung thành công! Đã đồng bộ {imported_count} môn học.",
         "imported_count": imported_count
@@ -275,6 +289,7 @@ def add_course(body: CourseConfig, _=_admin_dep):
         )
     course = body.model_dump()
     COURSES_DB.append(course)
+    _save_db()
     return {"message": f"Đã thêm môn học '{body.name}' ({body.id}) thành công.", "course": course}
 
 
@@ -283,6 +298,7 @@ def update_course(course_id: str, body: CourseConfig, _=_admin_dep):
     for i, c in enumerate(COURSES_DB):
         if c["id"] == course_id:
             COURSES_DB[i] = body.model_dump()
+            _save_db()
             return {"message": f"Đã cập nhật môn '{course_id}'.", "course": COURSES_DB[i]}
     raise HTTPException(status_code=404, detail=f"Không tìm thấy môn '{course_id}'.")
 
@@ -296,6 +312,7 @@ def delete_course(course_id: str, _=_admin_dep):
             to_remove = [a for a in ASSIGNMENTS_DB if a["ma_mon"] == course_id]
             for a in to_remove:
                 ASSIGNMENTS_DB.remove(a)
+            _save_db()
             return {"message": f"Đã xóa môn '{course_id}' và {len(to_remove)} phân công liên quan."}
     raise HTTPException(status_code=404, detail=f"Không tìm thấy môn '{course_id}'.")
 
@@ -338,6 +355,7 @@ def add_assignment(body: AssignmentConfig, _=_admin_dep):
         "hoc_ky": CURRENT_SEMESTER["display"]
     }
     ASSIGNMENTS_DB.append(assignment)
+    _save_db()
     return assignment
 
 
@@ -346,6 +364,7 @@ def delete_assignment(assignment_id: str, _=_admin_dep):
     for i, a in enumerate(ASSIGNMENTS_DB):
         if a["id"] == assignment_id:
             ASSIGNMENTS_DB.pop(i)
+            _save_db()
             return {"message": f"Đã xóa phân công '{assignment_id}'."}
     raise HTTPException(status_code=404, detail=f"Không tìm thấy phân công '{assignment_id}'.")
 
@@ -612,6 +631,7 @@ def add_department(body: UnitConfig, _=_admin_dep):
         raise HTTPException(status_code=400, detail=f"Mã khoa '{body.id}' đã tồn tại.")
     dept = body.model_dump()
     DEPARTMENTS_DB.append(dept)
+    _save_db()
     return dept
 
 
@@ -620,6 +640,7 @@ def update_department(dept_id: str, body: UnitConfig, _=_admin_dep):
     for i, d in enumerate(DEPARTMENTS_DB):
         if d["id"] == dept_id:
             DEPARTMENTS_DB[i] = body.model_dump()
+            _save_db()
             return DEPARTMENTS_DB[i]
     raise HTTPException(status_code=404, detail=f"Không tìm thấy khoa '{dept_id}'.")
 
@@ -633,6 +654,7 @@ def delete_department(dept_id: str, _=_admin_dep):
             to_remove_majors = [m for m in MAJORS_DB if m["faculty_id"] == dept_id]
             for m in to_remove_majors:
                 MAJORS_DB.remove(m)
+            _save_db()
             return {"message": f"Đã xóa khoa '{dept_id}' và {len(to_remove_majors)} ngành học trực thuộc."}
     raise HTTPException(status_code=404, detail=f"Không tìm thấy khoa '{dept_id}'.")
 
@@ -650,6 +672,7 @@ def add_institute(body: UnitConfig, _=_admin_dep):
         raise HTTPException(status_code=400, detail=f"Mã viện '{body.id}' đã tồn tại.")
     inst = body.model_dump()
     INSTITUTES_DB.append(inst)
+    _save_db()
     return inst
 
 
@@ -658,6 +681,7 @@ def update_institute(inst_id: str, body: UnitConfig, _=_admin_dep):
     for i, v in enumerate(INSTITUTES_DB):
         if v["id"] == inst_id:
             INSTITUTES_DB[i] = body.model_dump()
+            _save_db()
             return INSTITUTES_DB[i]
     raise HTTPException(status_code=404, detail=f"Không tìm thấy viện '{inst_id}'.")
 
@@ -671,6 +695,7 @@ def delete_institute(inst_id: str, _=_admin_dep):
             to_remove_majors = [m for m in MAJORS_DB if m["faculty_id"] == inst_id]
             for m in to_remove_majors:
                 MAJORS_DB.remove(m)
+            _save_db()
             return {"message": f"Đã xóa viện '{inst_id}' và {len(to_remove_majors)} ngành học trực thuộc."}
     raise HTTPException(status_code=404, detail=f"Không tìm thấy viện '{inst_id}'.")
 
@@ -694,6 +719,7 @@ def add_major(body: MajorConfig, _=_admin_dep):
         
     major = body.model_dump()
     MAJORS_DB.append(major)
+    _save_db()
     return major
 
 
@@ -706,6 +732,7 @@ def update_major(major_id: str, body: MajorConfig, _=_admin_dep):
             if not faculty_exists:
                 raise HTTPException(status_code=400, detail=f"Mã khoa/viện '{body.faculty_id}' không tồn tại.")
             MAJORS_DB[i] = body.model_dump()
+            _save_db()
             return MAJORS_DB[i]
     raise HTTPException(status_code=404, detail=f"Không tìm thấy ngành '{major_id}'.")
 
@@ -880,6 +907,7 @@ def delete_major(major_id: str, _=_admin_dep):
     for i, m in enumerate(MAJORS_DB):
         if m["id"] == major_id:
             MAJORS_DB.pop(i)
+            _save_db()
             return {"message": f"Đã xóa ngành '{major_id}' thành công."}
     raise HTTPException(status_code=404, detail=f"Không tìm thấy ngành '{major_id}'.")
  

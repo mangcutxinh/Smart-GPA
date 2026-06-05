@@ -47,6 +47,35 @@ class GradeEditBody(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────
 
+def map_letter_to_gpa(diem_chu: Optional[str]) -> Optional[float]:
+    if not diem_chu:
+        return None
+    mapping = {
+        "A+": 4.0,
+        "A": 4.0,
+        "B+": 3.5,
+        "B": 3.0,
+        "C+": 2.5,
+        "C": 2.0,
+        "D+": 1.5,
+        "D": 1.0,
+        "F": 0.0
+    }
+    return mapping.get(diem_chu.upper())
+
+
+def get_grade_letter(tong: float) -> tuple[str, float]:
+    if tong >= 9.0:  return ("A+", 4.0)
+    if tong >= 8.5:  return ("A",  4.0)
+    if tong >= 8.0:  return ("B+", 3.5)
+    if tong >= 7.0:  return ("B",  3.0)
+    if tong >= 6.0:  return ("C+", 2.5)
+    if tong >= 5.5:  return ("C",  2.0)
+    if tong >= 5.0:  return ("D+", 1.5)
+    if tong >= 4.0:  return ("D",  1.0)
+    return ("F", 0.0)
+
+
 def _get_lecturer_courses(lecturer_user: UserOut) -> List[dict]:
     """Lấy danh sách môn GV đang phụ trách (từ ASSIGNMENTS_DB)"""
     result = []
@@ -105,53 +134,56 @@ def _get_grades_for_course(ma_mon: str) -> List[dict]:
             th_list = [x for x in (th1, th2, th3) if x is not None]
             th_avg = sum(th_list) / len(th_list) if th_list else 0.0
             
-            # Tính điểm tích lũy hiện tại
+            # Tính điểm tổng kết, điểm chữ và cảnh báo đồng bộ với update logic
+            ck_val = row.get("diem_cuoi_ky")
+
             if loai_hp == "ly_thuyet":
                 tk_avg = sum(tx_list) / len(tx_list) if tx_list else 0.0
                 gk_val = row.get("giua_ky") or 0.0
-                diem_tong_ket = round(0.2 * tk_avg + 0.3 * gk_val, 2)
+                
+                if ck_val is None:
+                    diem_tong_ket = None
+                    diem_chu = None
+                    status_canh_bao = "An toan" if (0.2 * tk_avg + 0.3 * gk_val) >= 2.0 else "Nguy co"
+                else:
+                    diem_tong_ket = round(0.2 * tk_avg + 0.3 * gk_val + 0.5 * ck_val, 1)
+                    diem_tong_ket = min(10.0, diem_tong_ket)
+                    if ck_val < 3.0 or diem_tong_ket < 4.0:
+                        diem_chu = "F"
+                        status_canh_bao = "Nguy co"
+                    else:
+                        diem_chu, _ = get_grade_letter(diem_tong_ket)
+                        status_canh_bao = "An toan"
+            
             elif loai_hp == "thuc_hanh":
-                diem_tong_ket = round(th_avg, 2)
+                diem_tong_ket = round(th_avg, 1) if th_list else 0.0
+                if diem_tong_ket < 4.0:
+                    diem_chu = "F"
+                    status_canh_bao = "Nguy co"
+                else:
+                    diem_chu, _ = get_grade_letter(diem_tong_ket)
+                    status_canh_bao = "An toan"
+            
             else: # tich_hop
                 tk_avg = sum(tx_list) / len(tx_list) if tx_list else 0.0
                 gk_val = row.get("giua_ky") or 0.0
-                lt_val = 0.2 * tk_avg + 0.3 * gk_val
                 chi_lt = row.get("so_chi_lt") or 2
                 chi_th = row.get("so_chi_th") or 1
-                diem_tong_ket = round((lt_val * chi_lt + th_avg * chi_th) / (chi_lt + chi_th), 2)
-            
-            # Tính điểm chữ hiện tại từ qt_10 (nếu có) hoặc điểm tích luỹ
-            qt_10 = row.get("qt_10")
-            qt_val = qt_10 if qt_10 is not None else diem_tong_ket
-            
-            if loai_hp in ("thuc_hanh", "tich_hop") and th_avg < 3.0:
-                diem_chu = "F"
-            elif qt_val >= 9.0:
-                diem_chu = "A+"
-            elif qt_val >= 8.5:
-                diem_chu = "A"
-            elif qt_val >= 8.0:
-                diem_chu = "B+"
-            elif qt_val >= 7.0:
-                diem_chu = "B"
-            elif qt_val >= 6.0:
-                diem_chu = "C+"
-            elif qt_val >= 5.5:
-                diem_chu = "C"
-            elif qt_val >= 5.0:
-                diem_chu = "D+"
-            elif qt_val >= 4.0:
-                diem_chu = "D"
-            else:
-                diem_chu = "F"
                 
-            # Đánh giá cảnh báo
-            if loai_hp in ("thuc_hanh", "tich_hop") and th_avg < 3.0:
-                status_canh_bao = "Nguy co - liet thuc hanh"
-            elif qt_val < 4.0:
-                status_canh_bao = "Nguy co"
-            else:
-                status_canh_bao = "An toan"
+                if ck_val is None:
+                    diem_tong_ket = None
+                    diem_chu = None
+                    status_canh_bao = "An toan" if th_avg >= 4.0 else "Nguy co"
+                else:
+                    lt_score = 0.2 * tk_avg + 0.3 * gk_val + 0.5 * ck_val
+                    diem_tong_ket = round((lt_score * chi_lt + th_avg * chi_th) / (chi_lt + chi_th), 1)
+                    diem_tong_ket = min(10.0, diem_tong_ket)
+                    if ck_val < 3.0 or th_avg < 3.0 or diem_tong_ket < 4.0:
+                        diem_chu = "F"
+                        status_canh_bao = "Nguy co"
+                    else:
+                        diem_chu, _ = get_grade_letter(diem_tong_ket)
+                        status_canh_bao = "An toan"
                 
             records.append({
                 "_key": f"{sid}_{ma_mon}",
@@ -168,7 +200,7 @@ def _get_grades_for_course(ma_mon: str) -> List[dict]:
                 "diem_thuc_hanh_tich_hop": th1 if loai_hp == "tich_hop" else None,
                 "diem_tong_ket": diem_tong_ket,
                 "diem_chu": diem_chu,
-                "diem_he_4": None,
+                "diem_he_4": map_letter_to_gpa(diem_chu),
                 "status_canh_bao": status_canh_bao,
                 "source": "databricks",
             })
@@ -203,7 +235,7 @@ def _get_grades_for_course(ma_mon: str) -> List[dict]:
             "diem_thuc_hanh_tich_hop": record.get("diem_thuc_hanh_tich_hop"),
             "diem_tong_ket": record.get("diem_tong_ket"),
             "diem_chu": record.get("diem_chu", ""),
-            "diem_he_4": record.get("diem_he_4"),
+            "diem_he_4": record.get("diem_he_4") if record.get("diem_he_4") is not None else map_letter_to_gpa(record.get("diem_chu")),
             "status_canh_bao": record.get("status_canh_bao", "An toan"),
             "source": record.get("source", "local"),
         })
@@ -299,6 +331,146 @@ def update_student_grade(
     if body.diem_thuc_hanh_tich_hop is not None:
         record["diem_thuc_hanh_tich_hop"] = body.diem_thuc_hanh_tich_hop
 
+    loai_hp = record.get("loai_hoc_phan", "ly_thuyet")
+
+    # Map các trường của môn tích hợp
+    if loai_hp == "tich_hop":
+        if body.diem_thong_thuong is not None:
+            record["diem_thuong_ky_lt_list"] = body.diem_thong_thuong
+        if body.diem_giua_ky is not None:
+            record["diem_giua_ky_lt"] = body.diem_giua_ky
+        if body.diem_thuc_hanh_hien_tai is not None:
+            record["diem_thuc_hanh_hien_tai"] = body.diem_thuc_hanh_hien_tai
+            if len(body.diem_thuc_hanh_hien_tai) > 0:
+                record["diem_thuc_hanh_tich_hop"] = body.diem_thuc_hanh_hien_tai[0]
+
+    # get_grade_letter is defined globally
+
+    ck = record.get("diem_cuoi_ky")
+    
+    if loai_hp == "ly_thuyet":
+        tk_list = record.get("diem_thong_thuong") or []
+        tk_avg = sum(tk_list) / len(tk_list) if tk_list else 0.0
+        gk = record.get("diem_giua_ky")
+        gk_val = gk if gk is not None else 0.0
+        
+        if ck is None:
+            record["diem_tong_ket"] = None
+            record["diem_chu"] = None
+            record["diem_he_4"] = None
+            record["ket_qua"] = None
+            record["status_canh_bao"] = "An toan" if (0.2 * tk_avg + 0.3 * gk_val) >= 2.0 else "Nguy co"
+        else:
+            tong = round(0.2 * tk_avg + 0.3 * gk_val + 0.5 * ck, 1)
+            tong = min(10.0, tong)
+            record["diem_tong_ket"] = tong
+            if ck < 3.0 or tong < 4.0:
+                record["diem_chu"] = "F"
+                record["diem_he_4"] = 0.0
+                record["ket_qua"] = "Khong dat"
+                record["status_canh_bao"] = "Nguy co"
+            else:
+                diem_chu, diem_he_4 = get_grade_letter(tong)
+                record["diem_chu"] = diem_chu
+                record["diem_he_4"] = diem_he_4
+                record["ket_qua"] = "Dat"
+                record["status_canh_bao"] = "An toan"
+                
+    elif loai_hp == "thuc_hanh":
+        th_list = record.get("diem_thuc_hanh_hien_tai") or []
+        avg_th = round(sum(th_list) / len(th_list), 1) if th_list else 0.0
+        
+        if ck is None:
+            record["diem_tong_ket"] = None
+            record["diem_chu"] = None
+            record["diem_he_4"] = None
+            record["ket_qua"] = None
+            record["status_canh_bao"] = "An toan" if avg_th >= 4.0 else "Nguy co"
+        else:
+            record["diem_tong_ket"] = avg_th
+            if avg_th < 3.0 or avg_th < 4.0:
+                record["diem_chu"] = "F"
+                record["diem_he_4"] = 0.0
+                record["ket_qua"] = "Khong dat"
+                record["status_canh_bao"] = "Nguy co"
+            else:
+                diem_chu, diem_he_4 = get_grade_letter(avg_th)
+                record["diem_chu"] = diem_chu
+                record["diem_he_4"] = diem_he_4
+                record["ket_qua"] = "Dat"
+                record["status_canh_bao"] = "An toan"
+                
+    else:  # tich_hop
+        th_val = record.get("diem_thuc_hanh_tich_hop")
+        th_val = th_val if th_val is not None else 0.0
+        tk_lt_list = record.get("diem_thuong_ky_lt_list") or []
+        tk_lt_avg = sum(tk_lt_list) / len(tk_lt_list) if tk_lt_list else 0.0
+        gk_lt = record.get("diem_giua_ky_lt")
+        gk_lt_val = gk_lt if gk_lt is not None else 0.0
+        
+        if ck is None:
+            record["diem_tong_ket"] = None
+            record["diem_chu"] = None
+            record["diem_he_4"] = None
+            record["ket_qua"] = None
+            record["status_canh_bao"] = "An toan" if th_val >= 4.0 else "Nguy co"
+        else:
+            lt_score = 0.2 * tk_lt_avg + 0.3 * gk_lt_val + 0.5 * ck
+            tong = round((lt_score * 2.0 + th_val * 1.0) / 3.0, 1)
+            tong = min(10.0, tong)
+            record["diem_tong_ket"] = tong
+            if ck < 3.0 or th_val < 3.0 or tong < 4.0:
+                record["diem_chu"] = "F"
+                record["diem_he_4"] = 0.0
+                record["ket_qua"] = "Khong dat"
+                record["status_canh_bao"] = "Nguy co"
+            else:
+                diem_chu, diem_he_4 = get_grade_letter(tong)
+                record["diem_chu"] = diem_chu
+                record["diem_he_4"] = diem_he_4
+                record["ket_qua"] = "Dat"
+                record["status_canh_bao"] = "An toan"
+
+    # Lưu lại MOCK_GOLD_DB
+    MOCK_GOLD_DB[record_key] = record
+
+    # Đồng bộ local silver db
+    from app.db.databricks_db import sync_gold_to_silver, update_grades_in_cloud
+    sync_gold_to_silver()
+
+    # Tính toán qt_10 để cập nhật Databricks SQL Warehouse
+    if loai_hp == "ly_thuyet":
+        tk_list = record.get("diem_thong_thuong") or []
+        tk_avg = sum(tk_list) / len(tk_list) if tk_list else 0.0
+        gk = record.get("diem_giua_ky")
+        gk_val = gk if gk is not None else 0.0
+        qt_10 = round(0.2 * tk_avg + 0.3 * gk_val, 2)
+    elif loai_hp == "thuc_hanh":
+        th_list = record.get("diem_thuc_hanh_hien_tai") or []
+        qt_10 = round(sum(th_list) / len(th_list), 2) if th_list else 0.0
+    else:  # tich_hop
+        th_val = record.get("diem_thuc_hanh_tich_hop")
+        th_val = th_val if th_val is not None else 0.0
+        tk_lt_list = record.get("diem_thuong_ky_lt_list") or []
+        tk_lt_avg = sum(tk_lt_list) / len(tk_lt_list) if tk_lt_list else 0.0
+        gk_lt = record.get("diem_giua_ky_lt")
+        gk_lt_val = gk_lt if gk_lt is not None else 0.0
+        qt_10 = round(((0.2 * tk_lt_avg + 0.3 * gk_lt_val) * 2.0 + th_val * 1.0) / 3.0, 2)
+
+    update_grades_in_cloud(
+        student_id=student_id,
+        ma_mon=ma_mon,
+        diem_thong_thuong=record.get("diem_thong_thuong") or record.get("diem_thuong_ky_lt_list"),
+        diem_giua_ky=record.get("diem_giua_ky") or record.get("diem_giua_ky_lt"),
+        diem_cuoi_ky=record.get("diem_cuoi_ky"),
+        diem_thuc_hanh_hien_tai=record.get("diem_thuc_hanh_hien_tai"),
+        qt_10=qt_10,
+        diem_tong_ket=record.get("diem_tong_ket"),
+        diem_chu=record.get("diem_chu"),
+        diem_he_4=record.get("diem_he_4"),
+        status_canh_bao_final=record.get("status_canh_bao")
+    )
+
     record["updated_at"] = _now_str()
     record["updated_by"] = current_user.email
 
@@ -326,6 +498,12 @@ def update_student_grade(
         "new": dict(record),
         "timestamp": _now_str(),
     })
+
+    try:
+        from app.db.persistence import save_db_to_disk
+        save_db_to_disk()
+    except Exception as e:
+        logger.error(f"Loi khi sao luu database: {e}")
 
     return {
         "message": f"Đã cập nhật điểm SV {student_id} môn {ma_mon}",
@@ -379,6 +557,12 @@ def delete_student_grade(
         "new": None,
         "timestamp": _now_str(),
     })
+
+    try:
+        from app.db.persistence import save_db_to_disk
+        save_db_to_disk()
+    except Exception as e:
+        logger.error(f"Loi khi sao luu database: {e}")
 
     return {"message": f"Đã xóa bản ghi điểm SV {student_id} môn {ma_mon}", "log": log_event}
 
@@ -493,6 +677,12 @@ async def upload_grades_for_course(
         "details": f"File: {filename} – {imported} bản ghi",
         "timestamp": _now_str(),
     })
+
+    try:
+        from app.db.persistence import save_db_to_disk
+        save_db_to_disk()
+    except Exception as e:
+        logger.error(f"Loi khi sao luu database: {e}")
 
     return {
         "message": f"Đã nhập {imported} bản ghi điểm cho môn {ma_mon}",

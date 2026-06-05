@@ -113,6 +113,13 @@ def register_user(user_data: UserCreate) -> UserOut:
     }
     USERS_DB[user_login_key(new_user)] = new_user
 
+    try:
+        from app.db.persistence import save_db_to_disk
+        save_db_to_disk()
+    except Exception as e:
+        import logging
+        logging.getLogger("smartgpa.auth").error(f"Loi khi sao luu database: {e}")
+
     return _user_out(new_user)
 
 
@@ -250,4 +257,12 @@ def change_password_with_otp(body: PasswordChangeWithOtp) -> UserOut:
     user["must_change_password"] = False
     user.pop("pending_email", None)
     PASSWORD_RESET_OTPS.pop(login_key, None)
+
+    try:
+        from app.db.persistence import save_db_to_disk
+        save_db_to_disk()
+    except Exception as e:
+        import logging
+        logging.getLogger("smartgpa.auth").error(f"Loi khi sao luu database: {e}")
+
     return _user_out(user)

@@ -40,7 +40,7 @@ interface AdminOverview {
   latest_updates?: Array<Record<string, any>>;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8001";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8002";
 const TARGETS: TargetGrade[] = ["D", "D+", "C", "C+", "B", "B+", "A", "A+"];
 
 const SAMPLE_CSV = `student_id,ma_mon,ma_lop_hoc_phan,loai_hoc_phan,diem_thong_thuong,diem_giua_ky,diem_thuc_hanh_hien_tai,diem_thuc_hanh_tich_hop,diem_thuong_ky_lt_list,diem_giua_ky_lt
@@ -51,7 +51,9 @@ SV1002,INT1001,L01,tich_hop,,,,2.5,"4.0,4.5",4.0
 
 export default function App() {
   // Navigation & UI States
-  const [activeTab, setActiveTab] = useState<"student" | "lecturer" | "admin">("student");
+  const [activeTab, setActiveTab] = useState<"student" | "lecturer" | "admin">(() => {
+    return (localStorage.getItem("activeTab") as "student" | "lecturer" | "admin") || "student";
+  });
   const [isScrolled, setIsScrolled] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [predictSemester, setPredictSemester] = useState<number>(1);
@@ -59,12 +61,12 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Student States
-  const [studentId, setStudentId] = useState("23677361");
-  const [studentUsername, setStudentUsername] = useState("23677361");
+  const [studentId, setStudentId] = useState(() => localStorage.getItem("studentId") || "23677361");
+  const [studentUsername, setStudentUsername] = useState(() => localStorage.getItem("studentId") || "23677361");
   const [studentPassword, setStudentPassword] = useState("Sv@123");
-  const [studentToken, setStudentToken] = useState<string | null>(null);
-  const [studentName, setStudentName] = useState<string | null>(null);
-  const [studentMustChangePassword, setStudentMustChangePassword] = useState(false);
+  const [studentToken, setStudentToken] = useState<string | null>(() => localStorage.getItem("studentToken"));
+  const [studentName, setStudentName] = useState<string | null>(() => localStorage.getItem("studentName"));
+  const [studentMustChangePassword, setStudentMustChangePassword] = useState(() => localStorage.getItem("studentMustChangePassword") === "true");
   const [studentLoginError, setStudentLoginError] = useState<string | null>(null);
   const [studentAccountStatus, setStudentAccountStatus] = useState<string | null>(null);
   const [studentEmail, setStudentEmail] = useState("");
@@ -116,8 +118,8 @@ export default function App() {
   // Lecturer States
   const [lecturerEmail, setLecturerEmail] = useState("thibinh.gv1001@smartgpa.edu");
   const [lecturerPassword, setLecturerPassword] = useState("Gv@123");
-  const [lecturerToken, setLecturerToken] = useState<string | null>(null);
-  const [lecturerName, setLecturerName] = useState<string | null>(null);
+  const [lecturerToken, setLecturerToken] = useState<string | null>(() => localStorage.getItem("lecturerToken"));
+  const [lecturerName, setLecturerName] = useState<string | null>(() => localStorage.getItem("lecturerName"));
   const [lecturerError, setLecturerError] = useState<string | null>(null);
   const [isLecturerLoggingIn, setIsLecturerLoggingIn] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -132,18 +134,26 @@ export default function App() {
   const [lecturerGrades, setLecturerGrades] = useState<any[]>([]);
   const [isLecturerLoading, setIsLecturerLoading] = useState(false);
 
+  // Lecturer Course and Student Filters/Sorters
+  const [lecturerCourseSearch, setLecturerCourseSearch] = useState("");
+  const [lecturerStudentSearch, setLecturerStudentSearch] = useState("");
+  const [sortByStudentName, setSortByStudentName] = useState(false);
+
   // Lecturer CRUD Student Grades Inline States
   const [editingGradeRow, setEditingGradeRow] = useState<any | null>(null);
   const [editGradeMidterm, setEditGradeMidterm] = useState("");
   const [editGradeRegular, setEditGradeRegular] = useState("");
-  const [editGradePractice, setEditGradePractice] = useState("");
+  const [editGradeFinal, setEditGradeFinal] = useState("");
+  const [editGradePractice1, setEditGradePractice1] = useState("");
+  const [editGradePractice2, setEditGradePractice2] = useState("");
+  const [editGradePractice3, setEditGradePractice3] = useState("");
   const [editGradeReason, setEditGradeReason] = useState("Giảng viên cập nhật");
 
   // Advisor & Admin States
   const [adminEmail, setAdminEmail] = useState("admin@smartgpa.edu");
   const [adminPassword, setAdminPassword] = useState("Admin@123");
-  const [adminToken, setAdminToken] = useState<string | null>(null);
-  const [adminName, setAdminName] = useState<string | null>(null);
+  const [adminToken, setAdminToken] = useState<string | null>(() => localStorage.getItem("adminToken"));
+  const [adminName, setAdminName] = useState<string | null>(() => localStorage.getItem("adminName"));
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminStatus, setAdminStatus] = useState<string | null>(null);
   const [isAdminBusy, setIsAdminBusy] = useState(false);
@@ -152,18 +162,13 @@ export default function App() {
   const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
   const [adminTimeline, setAdminTimeline] = useState<any[]>([]);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
-  const [adminGrades, setAdminGrades] = useState<any[]>([]);
-  const [scoreHistory, setScoreHistory] = useState<any[]>([]);
+
   const [adminWarnings, setAdminWarnings] = useState<any[]>([]);
   const [gradingRules, setGradingRules] = useState<Record<string, any> | null>(null);
   const [adminCourses, setAdminCourses] = useState<any[]>([]);
   const [adminAssignments, setAdminAssignments] = useState<any[]>([]);
 
-  // Admin operations input states
-  const [newLecturerEmail, setNewLecturerEmail] = useState("newlecturer@smartgpa.edu");
-  const [newLecturerName, setNewLecturerName] = useState("Giảng viên mới");
-  const [newLecturerId, setNewLecturerId] = useState("GVNEW");
-  
+
   // Admin Student CRUD States
   const [editingStudent, setEditingStudent] = useState<any | null>(null);
   const [newStudentId, setNewStudentId] = useState("");
@@ -185,12 +190,10 @@ export default function App() {
   const [assignCourseId, setAssignCourseId] = useState("");
   const [assignClassId, setAssignClassId] = useState("L01");
 
-  const [adminStudentId, setAdminStudentId] = useState("23677361");
-  const [adminCourseId, setAdminCourseId] = useState("INT1306");
-  const [adminMidterm, setAdminMidterm] = useState("7.5");
+
   const [timelineTitle, setTimelineTitle] = useState("Cập nhật hệ thống");
   const [timelineDetails, setTimelineDetails] = useState("Admin cập nhật cấu hình SmartGPA.");
-  const [adminActiveSubTab, setAdminActiveSubTab] = useState<"warnings" | "students" | "lecturers" | "courses" | "assignments" | "grades" | "rules" | "timeline">("warnings");
+  const [adminActiveSubTab, setAdminActiveSubTab] = useState<"warnings" | "students" | "courses" | "assignments" | "rules" | "timeline">("warnings");
 
   // Track scrolling to style navbar dynamically
   useEffect(() => {
@@ -550,6 +553,9 @@ export default function App() {
               );
               setIsUploading(false);
               loadLecturerDashboard();
+              if (selectedLecturerCourseId) {
+                loadLecturerGrades(selectedLecturerCourseId);
+              }
             } else if (statusData.status === "FAILED") {
               clearInterval(pollInterval);
               setUploadError(`Databricks Pipeline thất bại: ${statusData.message || "Lỗi không xác định."}`);
@@ -567,6 +573,9 @@ export default function App() {
         );
         setIsUploading(false);
         loadLecturerDashboard();
+        if (selectedLecturerCourseId) {
+          loadLecturerGrades(selectedLecturerCourseId);
+        }
       }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Đã có lỗi xảy ra khi tải điểm.");
@@ -625,15 +634,40 @@ export default function App() {
     setIsLecturerLoading(true);
     try {
       const diem_thong_thuong = editGradeRegular.split(/[;,]/).map(x => x.trim()).filter(Boolean).map(Number);
-      const diem_thuc_hanh_hien_tai = editGradePractice.split(/[;,]/).map(x => x.trim()).filter(Boolean).map(Number);
       const diem_giua_ky = editGradeMidterm !== "" ? Number(editGradeMidterm) : null;
+      const diem_cuoi_ky = editGradeFinal !== "" ? Number(editGradeFinal) : null;
+
+      const currentStudent = lecturerGrades.find(g => g.student_id === studentId);
+      const loaiHp = currentStudent?.loai_hoc_phan || "ly_thuyet";
+
+      let diem_thuc_hanh_hien_tai: number[] = [];
+      let diem_thuc_hanh_tich_hop: number | null = null;
+
+      if (loaiHp === "tich_hop") {
+        if (editGradePractice1 !== "") {
+          diem_thuc_hanh_tich_hop = Number(editGradePractice1);
+          diem_thuc_hanh_hien_tai = [diem_thuc_hanh_tich_hop];
+        }
+      } else if (loaiHp === "thuc_hanh") {
+        const scores = [editGradePractice1, editGradePractice2, editGradePractice3]
+          .map(x => x.trim())
+          .filter(Boolean)
+          .map(Number);
+        diem_thuc_hanh_hien_tai = scores;
+      }
 
       const body: any = {
         reason: editGradeReason
       };
       if (diem_thong_thuong.length > 0) body.diem_thong_thuong = diem_thong_thuong;
       if (diem_giua_ky !== null) body.diem_giua_ky = diem_giua_ky;
-      if (diem_thuc_hanh_hien_tai.length > 0) body.diem_thuc_hanh_hien_tai = diem_thuc_hanh_hien_tai;
+      if (diem_cuoi_ky !== null) body.diem_cuoi_ky = diem_cuoi_ky;
+      if (loaiHp === "tich_hop") {
+        if (diem_thuc_hanh_tich_hop !== null) body.diem_thuc_hanh_tich_hop = diem_thuc_hanh_tich_hop;
+        if (diem_thuc_hanh_hien_tai.length > 0) body.diem_thuc_hanh_hien_tai = diem_thuc_hanh_hien_tai;
+      } else if (loaiHp === "thuc_hanh") {
+        if (diem_thuc_hanh_hien_tai.length > 0) body.diem_thuc_hanh_hien_tai = diem_thuc_hanh_hien_tai;
+      }
 
       const resp = await fetch(`${API_BASE}/lecturer/grades/${studentId}/${maMon}`, {
         method: "PUT",
@@ -1083,12 +1117,10 @@ export default function App() {
     setAdminError(null);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [overview, timeline, users, grades, history, warnings, rules, courses, assignments] = await Promise.all([
+      const [overview, timeline, users, warnings, rules, courses, assignments] = await Promise.all([
         fetch(`${API_BASE}/admin/overview`, { headers }).then((r) => r.json()),
         fetch(`${API_BASE}/admin/timeline`, { headers }).then((r) => r.json()),
         fetch(`${API_BASE}/admin/users`, { headers }).then((r) => r.json()),
-        fetch(`${API_BASE}/admin/grades`, { headers }).then((r) => r.json()),
-        fetch(`${API_BASE}/admin/score-history`, { headers }).then((r) => r.json()),
         fetch(`${API_BASE}/admin/warnings`, { headers }).then((r) => r.json()),
         fetch(`${API_BASE}/admin/grading-rules`, { headers }).then((r) => r.json()),
         fetch(`${API_BASE}/admin/courses`, { headers }).then((r) => r.json()),
@@ -1097,8 +1129,7 @@ export default function App() {
       setAdminOverview(overview);
       setAdminTimeline(Array.isArray(timeline) ? timeline : []);
       setAdminUsers(Array.isArray(users) ? users : []);
-      setAdminGrades(Array.isArray(grades) ? grades : []);
-      setScoreHistory(Array.isArray(history) ? history : []);
+
       setAdminWarnings(Array.isArray(warnings) ? warnings : []);
       setGradingRules(rules);
       setAdminCourses(Array.isArray(courses) ? courses : []);
@@ -1141,54 +1172,6 @@ export default function App() {
     }
   }
 
-  // Admin CRUD Lecturer
-  async function createLecturer() {
-    try {
-      await adminFetch("/admin/lecturers", {
-        method: "POST",
-        body: JSON.stringify({
-          email: newLecturerEmail,
-          password: "Gv@123",
-          full_name: newLecturerName,
-          role: "lecturer",
-          lecturer_id: newLecturerId,
-          faculty_id: "CNTT",
-        }),
-      });
-      setAdminStatus(`Đã tạo thành công giảng viên ${newLecturerName} (Mã: ${newLecturerId}).`);
-      await loadAdminDashboard();
-    } catch (err) {
-      setAdminError(err instanceof Error ? err.message : "Không tạo được giảng viên.");
-    }
-  }
-
-  async function deleteLecturer(lecturerId: any) {
-    if (!lecturerId) return;
-    try {
-      await adminFetch(`/admin/lecturers/${lecturerId}`, { method: "DELETE" });
-      setAdminStatus(`Đã xóa giảng viên mã ${lecturerId}.`);
-      await loadAdminDashboard();
-    } catch (err) {
-      setAdminError(err instanceof Error ? err.message : "Không xóa được giảng viên.");
-    }
-  }
-
-  // Admin update score
-  async function updateGrade() {
-    try {
-      await adminFetch(`/admin/grades/${adminStudentId}/${adminCourseId}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          diem_giua_ky: Number(adminMidterm),
-          reason: "Hệ thống quản trị cập nhật điểm giữa kỳ.",
-        }),
-      });
-      setAdminStatus(`Đã sửa điểm thi SV ${adminStudentId} môn ${adminCourseId} thành công.`);
-      await loadAdminDashboard();
-    } catch (err) {
-      setAdminError(err instanceof Error ? err.message : "Không sửa được điểm số.");
-    }
-  }
 
   // Admin add timeline updates
   async function addTimeline() {
@@ -1268,6 +1251,69 @@ export default function App() {
     [coursesBySemester, predictSemester]
   );
 
+  // Lecturer: filter courses
+  const filteredLecturerCourses = useMemo(() => {
+    if (!lecturerCourseSearch.trim()) return lecturerCourses;
+    const query = lecturerCourseSearch.toLowerCase().trim();
+    return lecturerCourses.filter(
+      (c) =>
+        c.ten_mon?.toLowerCase().includes(query) ||
+        c.ma_mon?.toLowerCase().includes(query) ||
+        c.ma_lop?.toLowerCase().includes(query)
+    );
+  }, [lecturerCourses, lecturerCourseSearch]);
+
+  // Lecturer: Vietnamese sorting helpers for grade list
+  const getLastNameForSorting = (fullName: string): string => {
+    if (!fullName) return "";
+    const parts = fullName.trim().split(/\s+/);
+    return parts[parts.length - 1] || "";
+  };
+
+  const compareVietnameseNames = (nameA: string, nameB: string): number => {
+    const a = nameA || "";
+    const b = nameB || "";
+    const lastA = getLastNameForSorting(a);
+    const lastB = getLastNameForSorting(b);
+    const cmp = lastA.localeCompare(lastB, "vi", { sensitivity: "accent" });
+    if (cmp !== 0) return cmp;
+    return a.localeCompare(b, "vi", { sensitivity: "accent" });
+  };
+
+  // Lecturer: filter and sort grades list
+  const filteredAndSortedGrades = useMemo(() => {
+    let result = [...lecturerGrades];
+
+    // Filter by student search query (student_id or ten_sv)
+    if (lecturerStudentSearch.trim()) {
+      const q = lecturerStudentSearch.toLowerCase().trim();
+      result = result.filter(
+        (g) =>
+          g.student_id?.toLowerCase().includes(q) ||
+          g.ten_sv?.toLowerCase().includes(q)
+      );
+    }
+
+    // Sort by name if toggle is active
+    if (sortByStudentName) {
+      result.sort((a, b) => compareVietnameseNames(a.ten_sv, b.ten_sv));
+    }
+
+    return result;
+  }, [lecturerGrades, lecturerStudentSearch, sortByStudentName]);
+
+  const maxPracticeScores = useMemo(() => {
+    const firstGrade = filteredAndSortedGrades[0];
+    if (!firstGrade || firstGrade.loai_hoc_phan !== "thuc_hanh") return 0;
+    let maxLen = 0;
+    for (const g of filteredAndSortedGrades) {
+      if (g.diem_thuc_hanh_hien_tai && g.diem_thuc_hanh_hien_tai.length > maxLen) {
+        maxLen = g.diem_thuc_hanh_hien_tai.length;
+      }
+    }
+    return maxLen || 3;
+  }, [filteredAndSortedGrades]);
+
   const isLoggedIn = !!(studentToken || lecturerToken || adminToken);
 
   function handleLogout() {
@@ -1284,7 +1330,88 @@ export default function App() {
     setStudentName(null);
     setLecturerName(null);
     setAdminName(null);
+    localStorage.clear();
   }
+
+  // Save sessions to localStorage to persist across refreshes (F5)
+  useEffect(() => {
+    localStorage.setItem("activeTab", activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (studentToken) {
+      localStorage.setItem("studentToken", studentToken);
+    } else {
+      localStorage.removeItem("studentToken");
+    }
+  }, [studentToken]);
+
+  useEffect(() => {
+    if (studentName) {
+      localStorage.setItem("studentName", studentName);
+    } else {
+      localStorage.removeItem("studentName");
+    }
+  }, [studentName]);
+
+  useEffect(() => {
+    if (studentId) {
+      localStorage.setItem("studentId", studentId);
+    } else {
+      localStorage.removeItem("studentId");
+    }
+  }, [studentId]);
+
+  useEffect(() => {
+    localStorage.setItem("studentMustChangePassword", String(studentMustChangePassword));
+  }, [studentMustChangePassword]);
+
+  useEffect(() => {
+    if (lecturerToken) {
+      localStorage.setItem("lecturerToken", lecturerToken);
+    } else {
+      localStorage.removeItem("lecturerToken");
+    }
+  }, [lecturerToken]);
+
+  useEffect(() => {
+    if (lecturerName) {
+      localStorage.setItem("lecturerName", lecturerName);
+    } else {
+      localStorage.removeItem("lecturerName");
+    }
+  }, [lecturerName]);
+
+  useEffect(() => {
+    if (adminToken) {
+      localStorage.setItem("adminToken", adminToken);
+    } else {
+      localStorage.removeItem("adminToken");
+    }
+  }, [adminToken]);
+
+  useEffect(() => {
+    if (adminName) {
+      localStorage.setItem("adminName", adminName);
+    } else {
+      localStorage.removeItem("adminName");
+    }
+  }, [adminName]);
+
+  // Auto load student subjects & notifications when logged in
+  useEffect(() => {
+    if (studentToken && studentId) {
+      loadStudentSubjects(studentToken, studentId);
+      loadStudentNotifications(studentToken);
+    }
+  }, [studentToken, studentId]);
+
+  // Auto load admin dashboard when logged in
+  useEffect(() => {
+    if (adminToken) {
+      loadAdminDashboard(adminToken);
+    }
+  }, [adminToken]);
 
   // Auto load lecturer courses when lecturer logged in
   useEffect(() => {
@@ -1806,10 +1933,7 @@ export default function App() {
                     <i className="pi pi-users sidebar-icon"></i>
                     <span className="sidebar-label">Quản lý sinh viên</span>
                   </button>
-                  <button className={`sidebar-item ${adminActiveSubTab === "lecturers" ? "active" : ""}`} onClick={() => setAdminActiveSubTab("lecturers")} title="Quản lý giảng viên">
-                    <i className="pi pi-user-edit sidebar-icon"></i>
-                    <span className="sidebar-label">Quản lý giảng viên</span>
-                  </button>
+
                   <button className={`sidebar-item ${adminActiveSubTab === "courses" ? "active" : ""}`} onClick={() => setAdminActiveSubTab("courses")} title="Quản lý môn học">
                     <i className="pi pi-bookmark sidebar-icon"></i>
                     <span className="sidebar-label">Quản lý môn học</span>
@@ -1818,10 +1942,7 @@ export default function App() {
                     <i className="pi pi-link sidebar-icon"></i>
                     <span className="sidebar-label">Phân công GV</span>
                   </button>
-                  <button className={`sidebar-item ${adminActiveSubTab === "grades" ? "active" : ""}`} onClick={() => setAdminActiveSubTab("grades")} title="Sửa điểm sinh viên">
-                    <i className="pi pi-pencil sidebar-icon"></i>
-                    <span className="sidebar-label">Sửa điểm sinh viên</span>
-                  </button>
+
                   <button className={`sidebar-item ${adminActiveSubTab === "rules" ? "active" : ""}`} onClick={() => setAdminActiveSubTab("rules")} title="Quy chế & Thang điểm">
                     <i className="pi pi-sliders-h sidebar-icon"></i>
                     <span className="sidebar-label">Quy chế & Thang điểm</span>
@@ -2490,14 +2611,33 @@ export default function App() {
               {/* Tab: COURSES */}
               {lecturerWorkspaceTab === "courses" && (
                 <div>
-                  <h4 className="font-bold mb-4" style={{ fontSize: 16 }}><i className="pi pi-book" style={{ marginRight: 8, color: "var(--color-primary)" }}></i>Các môn học đang giảng dạy</h4>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 16 }}>
+                    <h4 className="font-bold" style={{ fontSize: 16, margin: 0 }}><i className="pi pi-book" style={{ marginRight: 8, color: "var(--color-primary)" }}></i>Các môn học đang giảng dạy</h4>
+                    {/* Course Search Bar */}
+                    <div className="search-box-container" style={{ position: "relative", minWidth: 260 }}>
+                      <i className="pi pi-search" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-gray)", pointerEvents: "none" }}></i>
+                      <input
+                        type="text"
+                        placeholder="Tìm tên môn, mã môn..."
+                        value={lecturerCourseSearch}
+                        onChange={(e) => setLecturerCourseSearch(e.target.value)}
+                        className="form-control"
+                        style={{ paddingLeft: 36, width: "100%", borderRadius: 20, border: "1px solid var(--border-glass)", background: "rgba(255, 255, 255, 0.8)", height: "38px" }}
+                      />
+                      {lecturerCourseSearch && (
+                        <i className="pi pi-times" onClick={() => setLecturerCourseSearch("")} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "var(--text-gray)" }}></i>
+                      )}
+                    </div>
+                  </div>
                   {isLecturerLoading ? (
                     <div className="text-center" style={{ padding: 40 }}><i className="pi pi-spin pi-spinner" style={{ fontSize: 32 }}></i></div>
                   ) : lecturerCourses.length === 0 ? (
                     <p className="text-gray text-center">Bạn chưa được phân công môn học nào trong học kỳ này.</p>
+                  ) : filteredLecturerCourses.length === 0 ? (
+                    <p className="text-gray text-center">Không tìm thấy môn học nào phù hợp với tìm kiếm của bạn.</p>
                   ) : (
                     <div className="grid grid-3">
-                      {lecturerCourses.map((c) => (
+                      {filteredLecturerCourses.map((c) => (
                         <div key={c.ma_mon} className="glass-card hover-float" style={{ background: "#ffffff", cursor: "pointer" }} onClick={() => { setSelectedLecturerCourseId(c.ma_mon); setLecturerWorkspaceTab("grades"); }}>
                           <div className="icon-box" style={{ background: "rgba(240, 167, 142, 0.1)" }}><i className="pi pi-book"></i></div>
                           <h4 className="font-bold mb-1">{c.ten_mon}</h4>
@@ -2517,17 +2657,52 @@ export default function App() {
               {lecturerWorkspaceTab === "grades" && (
                 <div>
                   <h4 className="font-bold mb-4" style={{ fontSize: 16 }}><i className="pi pi-pencil" style={{ marginRight: 8, color: "var(--color-primary)" }}></i>Nhập và chỉnh sửa điểm số sinh viên</h4>
-                  <div style={{ display: "flex", gap: 16, marginBottom: 20, alignItems: "center", flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <label className="form-label" style={{ whiteSpace: "nowrap" }}>Chọn lớp học phần:</label>
-                      <select className="form-control" value={selectedLecturerCourseId} onChange={(e) => setSelectedLecturerCourseId(e.target.value)} style={{ maxWidth: 300 }}>
-                        <option value="">-- Chọn môn học --</option>
-                        {lecturerCourses.map((c) => (
-                          <option key={c.ma_mon} value={c.ma_mon}>{c.ten_mon} ({c.ma_mon})</option>
-                        ))}
-                      </select>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 16 }}>
+                    {/* Left controls: Select class & Refresh */}
+                    <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <label className="form-label" style={{ whiteSpace: "nowrap", margin: 0 }}>Chọn lớp học phần:</label>
+                        <select className="form-control" value={selectedLecturerCourseId} onChange={(e) => { setSelectedLecturerCourseId(e.target.value); setLecturerStudentSearch(""); }} style={{ maxWidth: 260 }}>
+                          <option value="">-- Chọn môn học --</option>
+                          {lecturerCourses.map((c) => (
+                            <option key={c.ma_mon} value={c.ma_mon}>{c.ten_mon} ({c.ma_mon})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <button className="btn btn-outline btn-sm" onClick={() => selectedLecturerCourseId && loadLecturerGrades(selectedLecturerCourseId)} style={{ height: "38px", display: "flex", alignItems: "center", gap: 6 }}><i className="pi pi-refresh"></i> Làm mới</button>
                     </div>
-                    <button className="btn btn-outline btn-sm" onClick={() => selectedLecturerCourseId && loadLecturerGrades(selectedLecturerCourseId)}><i className="pi pi-refresh"></i> Làm mới</button>
+
+                    {/* Right controls: Sort button & Search student */}
+                    {selectedLecturerCourseId && lecturerGrades.length > 0 && (
+                      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                        {/* Sort button */}
+                        <button
+                          className={`btn btn-sm ${sortByStudentName ? "btn-primary" : "btn-outline"}`}
+                          onClick={() => setSortByStudentName(!sortByStudentName)}
+                          style={{ height: "38px", display: "flex", alignItems: "center", gap: 6, borderRadius: 20, whiteSpace: "nowrap" }}
+                          title="Sắp xếp danh sách sinh viên theo chữ cái đầu của Tên"
+                        >
+                          <i className="pi pi-sort-alpha-down"></i>
+                          Xếp theo tên: {sortByStudentName ? "Bật" : "Tắt"}
+                        </button>
+
+                        {/* Search input */}
+                        <div className="search-box-container" style={{ position: "relative", minWidth: 260 }}>
+                          <i className="pi pi-search" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-gray)", pointerEvents: "none" }}></i>
+                          <input
+                            type="text"
+                            placeholder="Tìm MSSV, tên sinh viên..."
+                            value={lecturerStudentSearch}
+                            onChange={(e) => setLecturerStudentSearch(e.target.value)}
+                            className="form-control"
+                            style={{ paddingLeft: 36, width: "100%", borderRadius: 20, border: "1px solid var(--border-glass)", background: "rgba(255, 255, 255, 0.8)", height: "38px" }}
+                          />
+                          {lecturerStudentSearch && (
+                            <i className="pi pi-times" onClick={() => setLecturerStudentSearch("")} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "var(--text-gray)" }}></i>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {isLecturerLoading ? (
@@ -2536,6 +2711,8 @@ export default function App() {
                     <p className="text-gray text-center">Vui lòng chọn môn học cần chỉnh sửa điểm.</p>
                   ) : lecturerGrades.length === 0 ? (
                     <p className="text-gray text-center">Lớp này chưa có dữ liệu điểm sinh viên. Vui lòng chuyển sang tab "Nạp tệp điểm" để tải lên file CSV/XLSX.</p>
+                  ) : filteredAndSortedGrades.length === 0 ? (
+                    <p className="text-gray text-center" style={{ padding: 20 }}>Không tìm thấy sinh viên nào phù hợp với từ khóa tìm kiếm.</p>
                   ) : (
                     <div className="data-table-container" style={{ overflowX: "auto" }}>
                       <table className="data-table">
@@ -2545,7 +2722,11 @@ export default function App() {
                             <th>Họ & Tên</th>
                             <th>Thường kỳ (LT)</th>
                             <th>Giữa kỳ (LT)</th>
-                            {lecturerGrades[0]?.loai_hoc_phan !== "ly_thuyet" && <th>Điểm TH</th>}
+                            {filteredAndSortedGrades[0]?.loai_hoc_phan === "tich_hop" && <th>Điểm TH</th>}
+                            {filteredAndSortedGrades[0]?.loai_hoc_phan === "thuc_hanh" && Array.from({ length: maxPracticeScores }).map((_, i) => (
+                              <th key={`th-practice-${i}`}>TH {i + 1}</th>
+                            ))}
+                            <th>Cuối kỳ</th>
                             <th>Tổng kết</th>
                             <th>Hệ chữ</th>
                             <th>Hệ 4</th>
@@ -2554,7 +2735,7 @@ export default function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {lecturerGrades.map((g) => {
+                          {filteredAndSortedGrades.map((g) => {
                             const isEditing = editingGradeRow === g.student_id;
                             return (
                               <tr key={g.student_id}>
@@ -2574,15 +2755,35 @@ export default function App() {
                                     g.diem_giua_ky ?? "-"
                                   )}
                                 </td>
-                                {g.loai_hoc_phan !== "ly_thuyet" && (
+                                {g.loai_hoc_phan === "tich_hop" && (
                                   <td>
                                     {isEditing ? (
-                                      <input className="form-control" style={{ width: 100, padding: "4px 8px" }} value={editGradePractice} onChange={(e) => setEditGradePractice(e.target.value)} placeholder="VD: 8" />
+                                      <input className="form-control" style={{ width: 80, padding: "4px 8px" }} type="number" min="0" max="10" step="0.1" value={editGradePractice1} onChange={(e) => setEditGradePractice1(e.target.value)} />
                                     ) : (
-                                      g.diem_thuc_hanh_hien_tai?.join(", ") || g.diem_thuc_hanh_tich_hop || "-"
+                                      g.diem_thuc_hanh_tich_hop ?? "-"
                                     )}
                                   </td>
                                 )}
+                                {g.loai_hoc_phan === "thuc_hanh" && Array.from({ length: maxPracticeScores }).map((_, i) => {
+                                  const val = i === 0 ? editGradePractice1 : i === 1 ? editGradePractice2 : editGradePractice3;
+                                  const setVal = i === 0 ? setEditGradePractice1 : i === 1 ? setEditGradePractice2 : setEditGradePractice3;
+                                  return (
+                                    <td key={`edit-practice-${i}`}>
+                                      {isEditing ? (
+                                        <input className="form-control" style={{ width: 80, padding: "4px 8px" }} type="number" min="0" max="10" step="0.1" value={val} onChange={(e) => setVal(e.target.value)} />
+                                      ) : (
+                                        g.diem_thuc_hanh_hien_tai?.[i] ?? "-"
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                                <td>
+                                  {isEditing ? (
+                                    <input className="form-control" style={{ width: 80, padding: "4px 8px" }} type="number" min="0" max="10" step="0.1" value={editGradeFinal} onChange={(e) => setEditGradeFinal(e.target.value)} />
+                                  ) : (
+                                    g.diem_cuoi_ky ?? "-"
+                                  )}
+                                </td>
                                 <td><strong>{g.diem_tong_ket ?? "-"}</strong></td>
                                 <td><span className={`badge ${g.diem_chu === "F" ? "badge-danger" : g.diem_chu ? "badge-success" : ""}`}>{g.diem_chu || "-"}</span></td>
                                 <td>{g.diem_he_4 ?? "-"}</td>
@@ -2602,8 +2803,19 @@ export default function App() {
                                       <button className="btn btn-outline btn-sm" onClick={() => {
                                         setEditingGradeRow(g.student_id);
                                         setEditGradeRegular(g.diem_thong_thuong?.join(", ") || "");
-                                        setEditGradeMidterm(g.diem_giua_ky?.toString() || "");
-                                        setEditGradePractice(g.diem_thuc_hanh_hien_tai?.join(", ") || g.diem_thuc_hanh_tich_hop?.toString() || "");
+                                        setEditGradeMidterm(g.diem_giua_ky !== undefined && g.diem_giua_ky !== null ? g.diem_giua_ky.toString() : "");
+                                        setEditGradeFinal(g.diem_cuoi_ky !== undefined && g.diem_cuoi_ky !== null ? g.diem_cuoi_ky.toString() : "");
+                                        setEditGradePractice1(
+                                          g.loai_hoc_phan === "tich_hop"
+                                            ? (g.diem_thuc_hanh_tich_hop !== undefined && g.diem_thuc_hanh_tich_hop !== null ? g.diem_thuc_hanh_tich_hop.toString() : "")
+                                            : (g.diem_thuc_hanh_hien_tai?.[0] !== undefined && g.diem_thuc_hanh_hien_tai?.[0] !== null ? g.diem_thuc_hanh_hien_tai[0].toString() : "")
+                                        );
+                                        setEditGradePractice2(
+                                          g.diem_thuc_hanh_hien_tai?.[1] !== undefined && g.diem_thuc_hanh_hien_tai?.[1] !== null ? g.diem_thuc_hanh_hien_tai[1].toString() : ""
+                                        );
+                                        setEditGradePractice3(
+                                          g.diem_thuc_hanh_hien_tai?.[2] !== undefined && g.diem_thuc_hanh_hien_tai?.[2] !== null ? g.diem_thuc_hanh_hien_tai[2].toString() : ""
+                                        );
                                         setEditGradeReason("Giảng viên sửa điểm trực tiếp");
                                       }}><i className="pi pi-pencil"></i></button>
                                       <button className="btn btn-outline btn-sm" style={{ color: "var(--color-danger)", borderColor: "var(--color-danger)" }} onClick={() => lecturerDeleteGrade(g.student_id, g.ma_mon)}><i className="pi pi-trash"></i></button>
@@ -2625,21 +2837,35 @@ export default function App() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
                   <div className="glass-card" style={{ background: "#ffffff" }}>
                     <h4 className="font-bold mb-4" style={{ fontSize: 16 }}><i className="pi pi-cloud-upload" style={{ marginRight: 8, color: "var(--color-primary)" }}></i>Nạp tệp điểm CSV/XLSX học phần</h4>
-                    <p className="text-sm text-gray mb-6">Chọn tệp CSV hoặc XLSX chứa điểm số của sinh viên theo đúng định dạng mẫu. Hệ thống sẽ tự động chuyển đổi, đẩy dữ liệu lên Databricks Delta Lake và chạy dự báo.</p>
+                    <p className="text-sm text-gray mb-3">Chọn tệp CSV hoặc XLSX chứa điểm số sinh viên. Hỗ trợ file IUH chuẩn (Bảng điểm lớp học phần) và CSV thông thường.</p>
+
+                    <div style={{ background: "rgba(93, 156, 236, 0.08)", border: "1px solid rgba(93, 156, 236, 0.3)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 12.5 }}>
+                      <span style={{ fontWeight: 600, color: "#3a7ec8" }}><i className="pi pi-star-fill" style={{ marginRight: 5 }}></i>File IUH: </span>
+                      <span style={{ color: "var(--text-secondary)" }}>Dòng <em>"Lớp học phần: [MÃ_MÔN] - TÊN (LỚP)"</em> được nhận dạng tự động. Mã môn 2101409 → INT1306, 2101539 → INT1001...</span>
+                    </div>
                     
-                    <div className="form-group mb-6">
+                    <div className="form-group mb-4">
                       <label className="form-label">Tải lên file điểm (.csv, .xlsx)</label>
                       <input className="form-control" type="file" accept=".csv, .xlsx" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} style={{ border: "1px dashed var(--color-primary)", padding: 20, background: "rgba(232, 93, 117, 0.02)" }} />
+                      {uploadFile && (
+                        <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+                          <i className="pi pi-file-excel" style={{ color: "#1d7044" }}></i>
+                          <strong>{uploadFile.name}</strong>&nbsp;({(uploadFile.size / 1024).toFixed(1)} KB)
+                        </div>
+                      )}
                     </div>
 
-                    <div style={{ display: "flex", gap: 10 }}>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                       <button className="btn btn-primary" onClick={uploadScores} disabled={!uploadFile || isUploading}>
                         {isUploading ? (
                           <span><i className="pi pi-spin pi-spinner" style={{ marginRight: 6 }}></i>Đang đẩy lên Databricks...</span>
-                        ) : "Nạp điểm số lên Cloud"}
+                        ) : <span><i className="pi pi-cloud-upload" style={{ marginRight: 6 }}></i>Nạp điểm lên Cloud</span>}
+                      </button>
+                      <button className="btn btn-outline" onClick={downloadXlsxTemplate} style={{ borderColor: "#1d7044", color: "#1d7044" }}>
+                        <i className="pi pi-file-excel" style={{ marginRight: 6 }}></i>XLSX IUH mẫu
                       </button>
                       <button className="btn btn-outline" onClick={downloadTemplate}>
-                        Tải file CSV mẫu
+                        <i className="pi pi-download" style={{ marginRight: 6 }}></i>CSV mẫu
                       </button>
                     </div>
                   </div>
@@ -2648,12 +2874,19 @@ export default function App() {
                     <div className="glass-card" style={{ background: "#ffffff", height: "100%" }}>
                       <h4 className="font-bold mb-4" style={{ fontSize: 16 }}><i className="pi pi-info-circle" style={{ marginRight: 8, color: "var(--color-secondary)" }}></i>Quy chế nạp tệp điểm số</h4>
                       <ul style={{ paddingLeft: 18, color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 8, fontSize: 13.5 }}>
-                        <li>Hỗ trợ tải lên cả tệp <strong>CSV</strong> và <strong>Excel (.xlsx)</strong>.</li>
-                        <li>Điểm thành phần của mỗi sinh viên phải nằm trong thang điểm <strong>0.0 đến 10.0</strong>.</li>
-                        <li>Tệp tin phải chứa các cột bắt buộc: <strong>student_id, ma_mon, loai_hoc_phan</strong>.</li>
-                        <li>Môn <strong>thực hành</strong> hoặc <strong>tích hợp</strong> yêu cầu có điểm thực hành tối thiểu <strong>3.0</strong>, dưới 3.0 sẽ bị gán điểm liệt F.</li>
-                        <li>Sau khi nạp, sinh viên có thể kiểm tra lộ trình điểm thi cần đạt tức thời trên cổng Student Portal.</li>
+                        <li>Hỗ trợ <strong>CSV</strong> và <strong>Excel (.xlsx)</strong> gồm cả file IUH chuẩn (xuất từ phần mềm trường).</li>
+                        <li>Điểm thành phần phải nằm trong thang điểm <strong>0.0 – 10.0</strong>.</li>
+                        <li>File IUH: dòng <em>Lớp học phần</em> phải có định dạng <code style={{ background: "#f0f0f0", padding: "0 3px", borderRadius: 3, fontSize: 12 }}>[MÃ] - TÊN (LỚP)</code>.</li>
+                        <li>Sau khi nạp, hệ thống chạy Databricks pipeline → cập nhật điểm và thông báo cho sinh viên.</li>
                       </ul>
+                      <div style={{ marginTop: 18, borderTop: "1px dashed var(--border-glass)", paddingTop: 14 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8 }}>Ánh xạ Mã môn IUH → Nội bộ</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 12 }}>
+                          {[["2101409","INT1306"],["2101539","INT1001"],["2101680","INT1001"],["2101436","INT1100"],["2101864","INT1200"],["2101831","INT2001"]].map(([c,n]) => (
+                            <div key={c} style={{ background: "#f8f9fa", borderRadius: 6, padding: "3px 8px", color: "var(--text-secondary)" }}><code style={{ fontSize: 11, color: "#333" }}>{c}</code> → {n}</div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2705,18 +2938,14 @@ export default function App() {
                     <button className={`btn btn-sm ${adminActiveSubTab === "students" ? "btn-primary" : "btn-ghost"}`} onClick={() => setAdminActiveSubTab("students")}>
                       Quản lý sinh viên
                     </button>
-                    <button className={`btn btn-sm ${adminActiveSubTab === "lecturers" ? "btn-primary" : "btn-ghost"}`} onClick={() => setAdminActiveSubTab("lecturers")}>
-                      Quản lý Giảng viên
-                    </button>
+
                     <button className={`btn btn-sm ${adminActiveSubTab === "courses" ? "btn-primary" : "btn-ghost"}`} onClick={() => setAdminActiveSubTab("courses")}>
                       Quản lý môn học
                     </button>
                     <button className={`btn btn-sm ${adminActiveSubTab === "assignments" ? "btn-primary" : "btn-ghost"}`} onClick={() => setAdminActiveSubTab("assignments")}>
                       Phân công GV
                     </button>
-                    <button className={`btn btn-sm ${adminActiveSubTab === "grades" ? "btn-primary" : "btn-ghost"}`} onClick={() => setAdminActiveSubTab("grades")}>
-                      Sửa điểm sinh viên
-                    </button>
+
                     <button className={`btn btn-sm ${adminActiveSubTab === "rules" ? "btn-primary" : "btn-ghost"}`} onClick={() => setAdminActiveSubTab("rules")}>
                       Quy chế & Thang điểm
                     </button>
@@ -2823,41 +3052,7 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* C. Lecturers tab */}
-                    {adminActiveSubTab === "lecturers" && (
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 28 }}>
-                        <div>
-                          <h4 className="font-bold mb-4" style={{ fontSize: 16 }}>Thêm tài khoản Giảng viên</h4>
-                          <div className="form-group">
-                            <label className="form-label">Email Giảng viên</label>
-                            <input className="form-control" value={newLecturerEmail} onChange={(e) => setNewLecturerEmail(e.target.value)} />
-                          </div>
-                          <div className="form-group">
-                            <label className="form-label">Mã Giảng viên (ID)</label>
-                            <input className="form-control" value={newLecturerId} onChange={(e) => setNewLecturerId(e.target.value.toUpperCase())} />
-                          </div>
-                          <div className="form-group">
-                            <label className="form-label">Họ tên Giảng viên</label>
-                            <input className="form-control" value={newLecturerName} onChange={(e) => setNewLecturerName(e.target.value)} />
-                          </div>
-                          <button className="btn btn-primary" onClick={createLecturer} style={{ width: "100%", marginTop: 8 }}>Thêm mới giảng viên</button>
-                        </div>
-                        <div>
-                          <h4 className="font-bold mb-4" style={{ fontSize: 16 }}>Danh sách giảng viên ({adminUsers.filter(u => u.role === "lecturer").length})</h4>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto" }}>
-                            {adminUsers.filter(u => u.role === "lecturer").map((u) => (
-                              <div key={u.email} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-glass)", paddingBottom: 8 }}>
-                                <div>
-                                  <strong>{u.full_name}</strong>
-                                  <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>{u.lecturer_id} · {u.email}</p>
-                                </div>
-                                <button className="btn btn-outline btn-sm" onClick={() => deleteLecturer(u.lecturer_id)} style={{ color: "var(--color-danger)", borderColor: "var(--color-danger)" }}>Xóa</button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+
 
                     {/* D. Courses tab */}
                     {adminActiveSubTab === "courses" && (
@@ -2978,69 +3173,7 @@ export default function App() {
                     )}
 
                     {/* F. Grades Tab */}
-                    {adminActiveSubTab === "grades" && (
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 28 }}>
-                        <div>
-                          <h4 className="font-bold mb-4" style={{ fontSize: 16 }}>Sửa điểm thi môn học sinh viên</h4>
-                          <p className="text-sm text-gray mb-6">Cho phép quản trị viên cập nhật trực tiếp điểm quá trình giữa kỳ cho sinh viên (ghi nhận lịch sử sửa đổi).</p>
-                          
-                          <div className="form-group">
-                            <label className="form-label">Mã số sinh viên (MSSV)</label>
-                            <input className="form-control" value={adminStudentId} onChange={(e) => setAdminStudentId(e.target.value.toUpperCase())} />
-                          </div>
-                          <div className="form-group">
-                            <label className="form-label">Mã học phần</label>
-                            <input className="form-control" value={adminCourseId} onChange={(e) => setAdminCourseId(e.target.value.toUpperCase())} />
-                          </div>
-                          <div className="form-group">
-                            <label className="form-label">Điểm số giữa kỳ mới</label>
-                            <input className="form-control" type="number" min="0" max="10" step="0.1" value={adminMidterm} onChange={(e) => setAdminMidterm(e.target.value)} />
-                          </div>
-                          <button className="btn btn-primary" onClick={updateGrade} style={{ width: "100%", marginTop: 8 }}>Cập nhật điểm số</button>
 
-                          {adminStudentId.trim() && (
-                            <div className="mt-4" style={{ borderTop: "1px dashed var(--border-glass)", paddingTop: 14 }}>
-                              <h5 className="font-bold mb-2" style={{ fontSize: 13.5 }}>Điểm hiện tại của MSSV {adminStudentId.trim()}</h5>
-                              {adminGrades.filter(g => g.student_id?.toUpperCase() === adminStudentId.trim().toUpperCase()).length === 0 ? (
-                                <p className="text-gray text-xs">Không tìm thấy bản ghi điểm nào cho MSSV này.</p>
-                              ) : (
-                                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 150, overflowY: "auto" }}>
-                                  {adminGrades.filter(g => g.student_id?.toUpperCase() === adminStudentId.trim().toUpperCase()).map((g, idx) => (
-                                    <div key={idx} style={{ background: "rgba(0,0,0,0.02)", padding: 6, borderRadius: 6, fontSize: 12, display: "flex", justifyContent: "space-between" }}>
-                                      <span><strong>{g.ma_mon}</strong> - {g.ten_mon}</span>
-                                      <strong>GK: {g.diem_giua_ky ?? "N/A"} · CK: {g.diem_cuoi_ky ?? "N/A"} ({g.diem_chu || "F"})</strong>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <h4 className="font-bold mb-4" style={{ fontSize: 16 }}>Lịch sử sửa đổi điểm gần đây</h4>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 350, overflowY: "auto" }}>
-                            {scoreHistory.length === 0 ? (
-                              <p className="text-gray text-sm text-center" style={{ padding: 12 }}>Chưa ghi nhận lịch sử sửa đổi điểm.</p>
-                            ) : (
-                              scoreHistory.slice(0, 10).map((h, idx) => (
-                                <div key={idx} style={{ borderBottom: "1px solid var(--border-glass)", paddingBottom: 8, fontSize: 13 }}>
-                                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                    <strong>{h.student_id} · {h.ma_mon}</strong>
-                                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{h.timestamp}</span>
-                                  </div>
-                                  <p style={{ margin: "2px 0 0", color: "var(--text-secondary)", fontSize: 12 }}>
-                                    Lớp học phần: {h.ten_mon} ({h.loai_hoc_phan === "ly_thuyet" ? "Lý thuyết" : h.loai_hoc_phan === "thuc_hanh" ? "Thực hành" : "Tích hợp"})
-                                  </p>
-                                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-primary)" }}>
-                                    Điểm cũ: {h.old_diem_giua_ky ?? "Chưa có"} → Điểm mới: {h.new_diem_giua_ky}
-                                  </p>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
                     {/* G. Rules tab */}
                     {adminActiveSubTab === "rules" && (
@@ -3161,4 +3294,31 @@ function downloadTemplate() {
   a.download = "smartgpa_scores_template.csv";
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function downloadXlsxTemplate() {
+  // Generate IUH-format XLSX template using a data URI approach
+  // We embed a pre-built CSV that demonstrates the correct format,
+  // and instruct the user to use the Python generator script for actual XLSX
+  const iuhCsvContent = [
+    ",,,,Lớp học phần: [2101409] - Cấu trúc Dữ liệu & Giải thuật (DHKHDL19A_B)",
+    ",Mã sinh viên,Họ đệm,Tên,Lớp học,Giữa kỳ,Thường xuyên 1,Thường xuyên 2,Cuối kỳ",
+    "1,23001005,Nguyễn Hữu,Thuận,DHKHDL19A,6.4,7.0,6.6,7.5",
+    "2,23001015,Vũ Hoàng,Phúc,DHKHDL19A,8.4,8.3,8.1,7.8",
+    "3,23001025,Bùi Đức,Mạnh,DHKHDL19A,6.3,6.2,5.8,6.5",
+    "4,23695481,Muhammad,Arifil,DHKHDL19B,7.5,7.0,7.2,6.8",
+    "5,23723801,La Thiên,Bảo,DHKHDL19B,8.0,8.5,8.2,8.0",
+  ].join("\n");
+  const blob = new Blob(["\uFEFF" + iuhCsvContent], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "[2101409]_[Cau_truc_DL_Giai_thuat]_BangDiem_MAU.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+  alert(
+    "ℹ️ File mẫu đã tải xuống (định dạng CSV preview).\n\n" +
+    "Để có file .xlsx đúng chuẩn IUH, hãy sử dụng file bảng điểm xuất từ phần mềm trường IUH " +
+    "(có dòng 'Lớp học phần: [MÃ_MÔN] - TÊN (LỚP)') – hệ thống sẽ tự nhận dạng."
+  );
 }

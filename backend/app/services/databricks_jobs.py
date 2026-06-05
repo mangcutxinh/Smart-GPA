@@ -1,8 +1,11 @@
 import base64
 import time
+import logging
 from typing import Any, Dict
 
 import httpx
+
+logger = logging.getLogger("smartgpa.databricks_jobs")
 
 from app.core.config import settings
 
@@ -142,10 +145,27 @@ def wait_for_run(run_id: int) -> Dict[str, Any]:
 
 def get_run_output(run_id: int) -> Dict[str, Any]:
     with httpx.Client(timeout=60) as client:
+        # First query runs/get to inspect if this is a multi-task job run
+        run_info_resp = client.get(
+            f"{_api_base()}/api/2.2/jobs/runs/get",
+            headers=_headers(),
+            params={"run_id": run_id},
+        )
+        
+        target_run_id = run_id
+        if run_info_resp.status_code < 400:
+            run_info = run_info_resp.json()
+            tasks = run_info.get("tasks", [])
+            if tasks:
+                # Use the run_id of the first task
+                first_task_run_id = tasks[0].get("run_id")
+                if first_task_run_id:
+                    target_run_id = first_task_run_id
+
         response = client.get(
             f"{_api_base()}/api/2.2/jobs/runs/get-output",
             headers=_headers(),
-            params={"run_id": run_id},
+            params={"run_id": target_run_id},
         )
     if response.status_code >= 400:
         raise DatabricksPipelineError(f"Databricks run output failed: {response.text}")

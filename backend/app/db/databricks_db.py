@@ -540,6 +540,11 @@ def save_uploaded_scores_mock(rows: List[Dict[str, Any]]) -> int:
         logger.info(f"Đã cập nhật {saved_count} bản ghi vào Mock Delta Gold Table.")
 
     sync_gold_to_silver()
+    try:
+        from app.db.persistence import save_db_to_disk
+        save_db_to_disk()
+    except Exception as e:
+        logger.error(f"Loi khi sao luu database: {e}")
     return saved_count
 
 def sync_gold_to_silver() -> None:
@@ -638,6 +643,89 @@ def query_course_grades_from_cloud(ma_mon: str) -> Optional[List[Dict[str, Any]]
     except Exception as e:
         logger.error(f"Lỗi truy vấn điểm môn {ma_mon} từ Databricks: {e}")
         return None
+
+
+def update_grades_in_cloud(
+    student_id: str,
+    ma_mon: str,
+    diem_thong_thuong: Optional[List[float]] = None,
+    diem_giua_ky: Optional[float] = None,
+    diem_cuoi_ky: Optional[float] = None,
+    diem_thuc_hanh_hien_tai: Optional[List[float]] = None,
+    qt_10: Optional[float] = None,
+    diem_tong_ket: Optional[float] = None,
+    diem_chu: Optional[str] = None,
+    diem_he_4: Optional[float] = None,
+    status_canh_bao_final: Optional[str] = None,
+) -> bool:
+    """
+    Cập nhật điểm sinh viên trực tiếp trên Databricks SQL Warehouse (bảng silver_diem_sinh_vien và gold_diem_sinh_vien).
+    """
+    server_hostname, http_path, access_token = _databricks_connection_settings()
+    catalog = os.getenv("DATABRICKS_CATALOG") or settings.DATABRICKS_CATALOG or "workspace"
+    schema = os.getenv("DATABRICKS_SCHEMA") or settings.DATABRICKS_SCHEMA or "smartgpa_db"
+
+    if not (server_hostname and http_path and access_token):
+        return False
+
+    try:
+        from databricks import sql
+        logger.info(f"Kết nối tới Databricks (update_grades_in_cloud): {server_hostname}...")
+        
+        tx1 = diem_thong_thuong[0] if diem_thong_thuong and len(diem_thong_thuong) > 0 else None
+        tx2 = diem_thong_thuong[1] if diem_thong_thuong and len(diem_thong_thuong) > 1 else None
+        
+        th1 = diem_thuc_hanh_hien_tai[0] if diem_thuc_hanh_hien_tai and len(diem_thuc_hanh_hien_tai) > 0 else None
+        th2 = diem_thuc_hanh_hien_tai[1] if diem_thuc_hanh_hien_tai and len(diem_thuc_hanh_hien_tai) > 1 else None
+        th3 = diem_thuc_hanh_hien_tai[2] if diem_thuc_hanh_hien_tai and len(diem_thuc_hanh_hien_tai) > 2 else None
+
+        # Calculate average TH
+        th_avg = sum(diem_thuc_hanh_hien_tai) / len(diem_thuc_hanh_hien_tai) if diem_thuc_hanh_hien_tai else 0.0
+
+        with sql.connect(
+            server_hostname=server_hostname.replace("https://", ""),
+            http_path=http_path,
+            access_token=access_token
+        ) as connection:
+            with connection.cursor() as cursor:
+                # 1. Update silver_diem_sinh_vien
+                query_silver = f"""
+                    UPDATE {catalog}.{schema}.silver_diem_sinh_vien
+                    SET 
+                        thuong_xuyen_1 = ?,
+                        thuong_xuyen_2 = ?,
+                        giua_ky = ?,
+                        thuc_hanh_1 = ?,
+                        thuc_hanh_2 = ?,
+                        thuc_hanh_3 = ?,
+                        diem_cuoi_ky = ?,
+                        qt_10 = ?
+                    WHERE student_id = ? AND ma_mon = ?
+                """
+                cursor.execute(query_silver, (tx1, tx2, diem_giua_ky, th1, th2, th3, diem_cuoi_ky, qt_10, student_id, ma_mon))
+                logger.info(f"Đã cập nhật thành công silver_diem_sinh_vien cho SV {student_id} môn {ma_mon}")
+
+                # 2. Update gold_diem_sinh_vien (nếu tồn tại)
+                try:
+                    query_gold = f"""
+                        UPDATE {catalog}.{schema}.gold_diem_sinh_vien
+                        SET 
+                            diem_tich_luy_hien_tai = ?,
+                            diem_trung_binh_thuc_hanh = ?,
+                            diem_chu_hien_tai = ?,
+                            status_canh_bao_final = ?
+                        WHERE student_id = ? AND ma_mon = ?
+                    """
+                    cursor.execute(query_gold, (diem_tong_ket, th_avg, diem_chu, status_canh_bao_final, student_id, ma_mon))
+                    logger.info(f"Đã cập nhật thành công gold_diem_sinh_vien cho SV {student_id} môn {ma_mon}")
+                except Exception as gold_err:
+                    logger.warning(f"Không thể cập nhật gold_diem_sinh_vien (có thể bảng chưa được sinh): {gold_err}")
+                
+                return True
+    except Exception as e:
+        logger.error(f"Lỗi khi cập nhật điểm trên Databricks: {e}", exc_info=True)
+        return False
+
 
 
 

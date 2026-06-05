@@ -872,3 +872,11 @@ _load_csv_data()
 _seed_admin()
 _seed_demo_users()
 _seed_assignments_and_students()
+
+try:
+    from app.db.persistence import load_db_from_disk
+    load_db_from_disk()
+except Exception as e:
+    import sys
+    sys.stderr.write(f"Loi nạp database sao luu: {e}\n")
+
