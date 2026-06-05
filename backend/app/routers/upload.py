@@ -619,6 +619,13 @@ async def upload_file(
             safe_print(f"Hệ thống SmartGPA")
             safe_print(f"=========================================================================\n")
 
+    # Lưu DB ngay sau khi upload thành công
+    try:
+        from app.db.persistence import save_db_to_disk
+        save_db_to_disk()
+    except Exception:
+        pass
+
     return {
         "message": "Upload thành công và đang khởi chạy Databricks pipeline.",
         "filename": unique_filename,
@@ -924,6 +931,13 @@ def edit_grade(
         safe_print(f"Hệ thống SmartGPA")
         safe_print(f"=========================================================================\n")
     
+    # Lưu DB ngay sau khi cập nhật điểm
+    try:
+        from app.db.persistence import save_db_to_disk
+        save_db_to_disk()
+    except Exception:
+        pass
+
     return {
         "message": f"Cập nhật điểm thành công cho SV {student_id} môn {ma_mon}.",
         "updated_fields": updated_list,

@@ -4,14 +4,57 @@ Module: feature/auth-gateway + feature/simulation-engine
 Author: Chan (SOA Backend Architect)
 # Force reload for CSV database update: 2026-06-05
 """
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+
+logger = logging.getLogger("smartgpa.main")
+
+
+async def _auto_save_loop():
+    """Background task: tự động lưu DB xuống đĩa mỗi 5 phút."""
+    from app.db.persistence import save_db_to_disk
+    while True:
+        await asyncio.sleep(300)  # 5 phút
+        try:
+            success = save_db_to_disk()
+            if success:
+                logger.info("Auto-save: DB đã được lưu tự động.")
+        except Exception as e:
+            logger.error(f"Auto-save thất bại: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ─── STARTUP ─────────────────────────────────────────────────
+    from app.db.persistence import load_db_from_disk
+    loaded = load_db_from_disk()
+    if loaded:
+        logger.info("Startup: Đã khôi phục dữ liệu từ file backup.")
+    else:
+        logger.info("Startup: Không có backup, dùng dữ liệu seed mặc định.")
+
+    # Chạy background auto-save
+    task = asyncio.create_task(_auto_save_loop())
+
+    yield  # ← App đang chạy
+
+    # ─── SHUTDOWN ────────────────────────────────────────────────
+    task.cancel()
+    from app.db.persistence import save_db_to_disk
+    save_db_to_disk()
+    logger.info("Shutdown: Đã lưu DB lần cuối trước khi tắt.")
+
 from app.routers import auth, simulation, upload, admin, lecturer
 
 # ─── App instance ─────────────────────────────────────────────
 app = FastAPI(
+    lifespan=lifespan,
     title="SmartGPA API",
     description="""
 ## SmartGPA – Hệ thống Phân tích Học thuật & Giả lập Điểm Mục tiêu
