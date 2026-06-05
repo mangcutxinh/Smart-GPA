@@ -848,8 +848,8 @@ def send_admin_warning(body: WarningSendRequest, current_user: UserOut = _admin_
         if user.get("role") == "student" and user.get("student_id") == body.student_id:
             user.setdefault("notifications", []).append({
                 "id": f"noti_{uuid4().hex[:8]}",
-                "title": "Canh bao hoc vu",
-                "message": f"Admin gui canh bao mon {body.ten_mon} ({body.ma_mon}): {body.reason}. Nguy co: {body.fail_risk}%.",
+                "title": "Cảnh báo học vụ khẩn cấp ⚠️",
+                "message": f"Quản trị viên đã gửi cảnh báo môn {body.ten_mon} ({body.ma_mon}): {body.reason}. Nguy cơ rớt môn: {body.fail_risk}%.",
                 "type": "warning",
                 "sender": current_user.full_name,
                 "timestamp": action["timestamp"],

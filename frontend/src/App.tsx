@@ -2066,31 +2066,57 @@ export default function App() {
                                   <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600 }}>Môn học</th>
                                   <th style={{ padding: "8px 12px", textAlign: "center" }}>HK</th>
                                   <th style={{ padding: "8px 12px", textAlign: "center" }}>Tín chỉ</th>
-                                  <th style={{ padding: "8px 12px", textAlign: "center" }}>Điểm TK</th>
+                                  <th style={{ padding: "8px 12px", textAlign: "center" }}>Thường xuyên</th>
+                                  <th style={{ padding: "8px 12px", textAlign: "center" }}>Giữa kỳ</th>
+                                  <th style={{ padding: "8px 12px", textAlign: "center" }}>Thực hành</th>
+                                  <th style={{ padding: "8px 12px", textAlign: "center" }}>Cuối kỳ</th>
+                                  <th style={{ padding: "8px 12px", textAlign: "center" }}>Tổng kết</th>
                                   <th style={{ padding: "8px 12px", textAlign: "center" }}>Chữ</th>
                                   <th style={{ padding: "8px 12px", textAlign: "center" }}>Tình trạng</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {results.slice(0, 8).map((r, i) => (
-                                  <tr key={i} style={{ borderTop: "1px solid var(--border-glass)" }}>
-                                    <td style={{ padding: "8px 12px" }}>
-                                      <strong style={{ fontSize: 12 }}>{r.ma_mon}</strong>
-                                      <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)" }}>{r.ten_mon}</span>
-                                    </td>
-                                    <td style={{ padding: "8px 12px", textAlign: "center" }}>HK{r.hoc_ky}</td>
-                                    <td style={{ padding: "8px 12px", textAlign: "center" }}>{r.tong_so_chi}</td>
-                                    <td style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700 }}>
-                                      {r.diem_tong_ket != null ? r.diem_tong_ket : <span style={{ color: "var(--text-muted)" }}>-</span>}
-                                    </td>
-                                    <td style={{ padding: "8px 12px", textAlign: "center" }}>{r.diem_chu || "-"}</td>
-                                    <td style={{ padding: "8px 12px", textAlign: "center" }}>
-                                      <span className={`badge ${r.status_canh_bao === "An toan" ? "badge-success" : "badge-danger"}`} style={{ fontSize: 10, padding: "2px 8px" }}>
-                                        {r.status_canh_bao === "An toan" ? "An toàn" : r.status_canh_bao}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                ))}
+                                {results.slice(0, 8).map((r, i) => {
+                                  const txDisplay = r.thuong_xuyen && r.thuong_xuyen.length > 0 ? r.thuong_xuyen.join(", ") : "-";
+                                  const gkDisplay = r.giua_ky != null ? r.giua_ky : "-";
+                                  
+                                  let thDisplay = "-";
+                                  if (r.loai_hoc_phan === "thuc_hanh" && r.thuc_hanh && r.thuc_hanh.length > 0) {
+                                    thDisplay = r.thuc_hanh.join(", ");
+                                  } else if (r.loai_hoc_phan === "tich_hop" && r.thuc_hanh_tich_hop != null) {
+                                    thDisplay = r.thuc_hanh_tich_hop;
+                                  } else if (r.thuc_hanh && r.thuc_hanh.length > 0) {
+                                    thDisplay = r.thuc_hanh.join(", ");
+                                  } else if (r.thuc_hanh_tich_hop != null) {
+                                    thDisplay = r.thuc_hanh_tich_hop;
+                                  }
+
+                                  const ckDisplay = r.diem_cuoi_ky != null ? r.diem_cuoi_ky : "-";
+
+                                  return (
+                                    <tr key={i} style={{ borderTop: "1px solid var(--border-glass)" }}>
+                                      <td style={{ padding: "8px 12px" }}>
+                                        <strong style={{ fontSize: 13, display: "block", color: "var(--text-primary)" }}>{r.ten_mon}</strong>
+                                        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{r.ma_mon}</span>
+                                      </td>
+                                      <td style={{ padding: "8px 12px", textAlign: "center" }}>HK{r.hoc_ky}</td>
+                                      <td style={{ padding: "8px 12px", textAlign: "center" }}>{r.tong_so_chi}</td>
+                                      <td style={{ padding: "8px 12px", textAlign: "center" }}>{txDisplay}</td>
+                                      <td style={{ padding: "8px 12px", textAlign: "center" }}>{gkDisplay}</td>
+                                      <td style={{ padding: "8px 12px", textAlign: "center" }}>{thDisplay}</td>
+                                      <td style={{ padding: "8px 12px", textAlign: "center" }}>{ckDisplay}</td>
+                                      <td style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700 }}>
+                                        {r.diem_tong_ket != null ? r.diem_tong_ket : <span style={{ color: "var(--text-muted)" }}>-</span>}
+                                      </td>
+                                      <td style={{ padding: "8px 12px", textAlign: "center", fontWeight: 600 }}>{r.diem_chu || "-"}</td>
+                                      <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                                        <span className={`badge ${r.status_canh_bao === "An toan" ? "badge-success" : "badge-danger"}`} style={{ fontSize: 10, padding: "2px 8px" }}>
+                                          {r.status_canh_bao === "An toan" ? "An toàn" : r.status_canh_bao}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           </div>
@@ -2161,8 +2187,8 @@ export default function App() {
                               <tbody>
                                 {courses.map((c, ci) => (
                                   <tr key={ci} style={{ borderTop: "1px solid var(--border-glass)", background: c.diem_tong_ket != null && c.diem_tong_ket < 4.0 ? "rgba(255,100,100,0.04)" : "transparent" }}>
-                                    <td style={{ padding: "7px 10px", fontWeight: 600, color: "var(--color-primary)", whiteSpace: "nowrap" }}>{c.ma_mon}</td>
-                                    <td style={{ padding: "7px 10px" }}>{c.ten_mon}</td>
+                                    <td style={{ padding: "7px 10px", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{c.ma_mon}</td>
+                                    <td style={{ padding: "7px 10px", fontWeight: 600, color: "var(--text-primary)" }}>{c.ten_mon}</td>
                                     <td style={{ padding: "7px 10px", textAlign: "center" }}>
                                       <span style={{ fontSize: 11, background: c.loai_hoc_phan === "ly_thuyet" ? "#e8f4fd" : c.loai_hoc_phan === "thuc_hanh" ? "#e8fdf0" : "#fdf8e8", padding: "2px 7px", borderRadius: 10, color: "#555" }}>
                                         {c.loai_hoc_phan === "ly_thuyet" ? "LT" : c.loai_hoc_phan === "thuc_hanh" ? "TH" : "TH"}
@@ -2305,7 +2331,7 @@ export default function App() {
                       {hasPredicted && selectedResult && (
                         <div className="glass-card glow-card" style={{ padding: 22 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                            <strong style={{ fontSize: 16, color: "var(--color-primary)" }}>Mục tiêu {selectedResult.ma_mon}</strong>
+                            <strong style={{ fontSize: 16, color: "var(--color-primary)" }}>Mục tiêu {selectedResult.ten_mon} ({selectedResult.ma_mon})</strong>
                             <span className={`badge ${selectedResult.prediction?.is_kha_thi ? "badge-success" : "badge-danger"}`}>
                               {selectedResult.prediction?.is_kha_thi ? "Khả thi" : "Bất khả thi"}
                             </span>

@@ -269,6 +269,17 @@ def lookup_student_scores(
         for row in databricks_rows:
             ma_mon = row.get("ma_mon")
             c_info = course_map.get(ma_mon, {})
+            is_feasible = bool(row.get("kha_thi"))
+            target_grade = row.get("diem_chu_muc_tieu")
+            score_needed = row.get("diem_cuoi_ky_can_dat")
+            
+            if not is_feasible:
+                msg = f"Rất tiếc! Mục tiêu đạt điểm chữ {target_grade} cho môn học này hiện tại là bất khả thi vì điểm cuối kỳ cần đạt vượt quá 10.0."
+            elif score_needed is not None and score_needed <= 3.0:
+                msg = f"Tuyệt vời! Điểm thành phần hiện tại rất tốt. Bạn chỉ cần đạt tối thiểu 3.0 điểm thi cuối kỳ (ngưỡng điểm liệt quy chế) để đạt mục tiêu điểm chữ {target_grade}."
+            else:
+                msg = f"Hãy nỗ lực ôn tập nhé! Bạn cần đạt tối thiểu {score_needed} điểm thi cuối kỳ để hoàn thành mục tiêu đạt điểm chữ {target_grade}."
+
             results.append({
                 "student_id": row.get("student_id"),
                 "student_name": row.get("student_name"),
@@ -279,14 +290,11 @@ def lookup_student_scores(
                 "source": "databricks",
                 "prediction": {
                     "loai_hoc_phan": row.get("loai_hoc_phan"),
-                    "muc_tieu": row.get("diem_chu_muc_tieu"),
+                    "muc_tieu": target_grade,
                     "diem_muc_tieu_nguong": row.get("diem_muc_tieu_10"),
-                    "diem_can_dat": row.get("diem_cuoi_ky_can_dat"),
-                    "is_kha_thi": bool(row.get("kha_thi")),
-                    "message": (
-                        f"Can dat {row.get('diem_cuoi_ky_can_dat')} diem cuoi ky "
-                        f"de dat muc tieu {row.get('diem_chu_muc_tieu')}."
-                    ),
+                    "diem_can_dat": score_needed,
+                    "is_kha_thi": is_feasible,
+                    "message": msg,
                     "chi_tiet": {
                         "qt_10": row.get("qt_10"),
                         "lt_qt_10": row.get("lt_qt_10"),
@@ -300,6 +308,11 @@ def lookup_student_scores(
                 "diem_he_4": row.get("diem_he_4") or row.get("diem_4"),
                 "tong_so_chi": row.get("tong_so_chi") or row.get("so_tin_chi") or c_info.get("credits", 3),
                 "hoc_ky": row.get("hoc_ky") or c_info.get("hoc_ky", 1),
+                "thuong_xuyen": [x for x in (row.get("thuong_xuyen_1"), row.get("thuong_xuyen_2")) if x is not None],
+                "giua_ky": row.get("giua_ky"),
+                "thuc_hanh": [x for x in (row.get("thuc_hanh_1"), row.get("thuc_hanh_2"), row.get("thuc_hanh_3")) if x is not None],
+                "thuc_hanh_tich_hop": row.get("thuc_hanh_tich_hop") or row.get("th_qt_10"),
+                "diem_cuoi_ky": row.get("diem_cuoi_ky"),
             })
         return results
 
@@ -356,6 +369,18 @@ def lookup_student_scores(
         
         try:
             prediction = _build_simulation_from_score_data(score_data, diem_chu_muc_tieu)
+            
+            # Đổi câu thông báo sang tiếng Việt có dấu phong phú
+            is_feasible_local = prediction.is_kha_thi
+            target_grade_local = prediction.muc_tieu
+            score_needed_local = prediction.diem_can_dat
+            if not is_feasible_local:
+                prediction.message = f"Rất tiếc! Mục tiêu đạt điểm chữ {target_grade_local} cho môn học này hiện tại là bất khả thi vì điểm cuối kỳ cần đạt vượt quá 10.0."
+            elif score_needed_local is not None and score_needed_local <= 3.0:
+                prediction.message = f"Tuyệt vời! Điểm thành phần hiện tại rất tốt. Bạn chỉ cần đạt tối thiểu 3.0 điểm thi cuối kỳ (ngưỡng điểm liệt quy chế) để đạt mục tiêu điểm chữ {target_grade_local}."
+            else:
+                prediction.message = f"Hãy nỗ lực ôn tập nhé! Bạn cần đạt tối thiểu {score_needed_local} điểm thi cuối kỳ để hoàn thành mục tiêu đạt điểm chữ {target_grade_local}."
+
             results.append({
                 "student_id": record_student_id,
                 "ma_mon": ma_mon,
@@ -369,6 +394,11 @@ def lookup_student_scores(
                 "diem_he_4": computed_he4,
                 "tong_so_chi": score_data.get("tong_so_chi") or c_info.get("credits", 3),
                 "hoc_ky": score_data.get("hoc_ky") or c_info.get("hoc_ky", 1),
+                "thuong_xuyen": score_data.get("diem_thong_thuong") or score_data.get("diem_thuong_ky_lt_list") or [],
+                "giua_ky": score_data.get("diem_giua_ky") or score_data.get("diem_giua_ky_lt"),
+                "thuc_hanh": score_data.get("diem_thuc_hanh_hien_tai") or [],
+                "thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),
+                "diem_cuoi_ky": score_data.get("diem_cuoi_ky"),
             })
         except Exception as e:
             results.append({
@@ -384,6 +414,11 @@ def lookup_student_scores(
                 "diem_he_4": computed_he4,
                 "tong_so_chi": score_data.get("tong_so_chi") or c_info.get("credits", 3),
                 "hoc_ky": score_data.get("hoc_ky") or c_info.get("hoc_ky", 1),
+                "thuong_xuyen": score_data.get("diem_thong_thuong") or score_data.get("diem_thuong_ky_lt_list") or [],
+                "giua_ky": score_data.get("diem_giua_ky") or score_data.get("diem_giua_ky_lt"),
+                "thuc_hanh": score_data.get("diem_thuc_hanh_hien_tai") or [],
+                "thuc_hanh_tich_hop": score_data.get("diem_thuc_hanh_tich_hop"),
+                "diem_cuoi_ky": score_data.get("diem_cuoi_ky"),
             })
 
 
