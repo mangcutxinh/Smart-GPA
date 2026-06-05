@@ -32,6 +32,11 @@ interface StudentLookupResult {
   diem_he_4?: number | null;
   tong_so_chi?: number;
   hoc_ky?: number;
+  thuong_xuyen?: number[];
+  giua_ky?: number | null;
+  thuc_hanh?: number[];
+  thuc_hanh_tich_hop?: number | null;
+  diem_cuoi_ky?: number | null;
 }
 
 interface AdminOverview {
@@ -1474,13 +1479,24 @@ export default function App() {
                           {studentNotifications.length === 0 ? (
                             <p className="text-gray text-sm text-center" style={{ padding: 12 }}>Không có thông báo nào.</p>
                           ) : (
-                            studentNotifications.map((noti) => (
-                              <div key={noti.id} style={{ background: noti.is_read ? "transparent" : "rgba(232,93,117,0.04)", padding: 8, borderRadius: 8, borderLeft: noti.is_read ? "none" : "3px solid var(--color-primary)", textAlign: "left" }}>
-                                <strong style={{ fontSize: 12, display: "block" }}>{noti.title}</strong>
-                                <span style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginTop: 2 }}>{noti.message}</span>
-                                <span style={{ fontSize: 10, color: "var(--text-muted)", display: "block", marginTop: 4 }}>{noti.timestamp}</span>
-                              </div>
-                            ))
+                            studentNotifications.map((noti) => {
+                              const match = noti.message ? noti.message.match(/(?:môn|Môn|mÃ´n|MÃ´n) ([^():]+) \(([^()]{3,10})\)/) : null;
+                              const tenMon = noti.ten_mon || (match ? match[1].trim() : null);
+                              const maMon = noti.ma_mon || (match ? match[2].trim() : null);
+                              return (
+                                <div key={noti.id} style={{ background: noti.is_read ? "transparent" : "rgba(232,93,117,0.04)", padding: 8, borderRadius: 8, borderLeft: noti.is_read ? "none" : "3px solid var(--color-primary)", textAlign: "left" }}>
+                                  <strong style={{ fontSize: 12, display: "block" }}>{noti.title}</strong>
+                                  {tenMon && (
+                                    <div style={{ marginTop: 4, marginBottom: 4 }}>
+                                      <strong style={{ fontSize: 12, color: "var(--color-primary)", display: "block" }}>{tenMon}</strong>
+                                      <span style={{ fontSize: 10, color: "var(--text-muted)", display: "block" }}>{maMon}</span>
+                                    </div>
+                                  )}
+                                  <span style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginTop: 2 }}>{noti.message}</span>
+                                  <span style={{ fontSize: 10, color: "var(--text-muted)", display: "block", marginTop: 4 }}>{noti.timestamp}</span>
+                                </div>
+                              );
+                            })
                           )}
                         </div>
                       </div>
@@ -2084,11 +2100,11 @@ export default function App() {
                                   if (r.loai_hoc_phan === "thuc_hanh" && r.thuc_hanh && r.thuc_hanh.length > 0) {
                                     thDisplay = r.thuc_hanh.join(", ");
                                   } else if (r.loai_hoc_phan === "tich_hop" && r.thuc_hanh_tich_hop != null) {
-                                    thDisplay = r.thuc_hanh_tich_hop;
+                                    thDisplay = String(r.thuc_hanh_tich_hop);
                                   } else if (r.thuc_hanh && r.thuc_hanh.length > 0) {
                                     thDisplay = r.thuc_hanh.join(", ");
                                   } else if (r.thuc_hanh_tich_hop != null) {
-                                    thDisplay = r.thuc_hanh_tich_hop;
+                                    thDisplay = String(r.thuc_hanh_tich_hop);
                                   }
 
                                   const ckDisplay = r.diem_cuoi_ky != null ? r.diem_cuoi_ky : "-";
@@ -2161,7 +2177,6 @@ export default function App() {
                     allSemesters.map((hk) => {
                       const courses = coursesBySemester[hk] || [];
                       const hkCredits = courses.reduce((acc, c) => acc + (c.tong_so_chi || 0), 0);
-                      const hkPassed = courses.filter(c => c.diem_tong_ket != null && c.diem_tong_ket >= 4.0).reduce((acc, c) => acc + (c.tong_so_chi || 0), 0);
                       return (
                         <div key={hk} style={{ marginBottom: 28 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
@@ -2244,7 +2259,7 @@ export default function App() {
                           <option value="">-- Chọn môn --</option>
                           {coursesInSemester.map((item) => (
                             <option key={`${item.student_id}-${item.ma_mon}`} value={item.ma_mon}>
-                              {item.ma_mon} – {item.ten_mon} ({item.loai_hoc_phan === "ly_thuyet" ? "LT" : item.loai_hoc_phan === "thuc_hanh" ? "TH" : "TH"})
+                              {item.ten_mon} ({item.ma_mon}) – {item.loai_hoc_phan === "ly_thuyet" ? "LT" : "TH"}
                             </option>
                           ))}
                         </select>
@@ -2307,9 +2322,12 @@ export default function App() {
 
                       {hasPredicted && selectedResult && (
                         <div className="glass-card glow-card" style={{ padding: 22 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                            <strong style={{ fontSize: 16, color: "var(--color-primary)" }}>Mục tiêu {selectedResult.ten_mon} ({selectedResult.ma_mon})</strong>
-                            <span className={`badge ${selectedResult.prediction?.is_kha_thi ? "badge-success" : "badge-danger"}`}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                            <div>
+                              <strong style={{ fontSize: 16, display: "block", color: "var(--color-primary)", fontWeight: 700 }}>{selectedResult.ten_mon}</strong>
+                              <span style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginTop: 2 }}>Mã môn: {selectedResult.ma_mon}</span>
+                            </div>
+                            <span className={`badge ${selectedResult.prediction?.is_kha_thi ? "badge-success" : "badge-danger"}`} style={{ alignSelf: "flex-start" }}>
                               {selectedResult.prediction?.is_kha_thi ? "Khả thi" : "Bất khả thi"}
                             </span>
                           </div>
