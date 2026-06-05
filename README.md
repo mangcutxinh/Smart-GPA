@@ -1,7 +1,7 @@
 # SmartGPA
 
 _Hệ thống phân tích học thuật, giả lập điểm mục tiêu và dự báo cảnh báo học vụ dựa trên kiến trúc SOA & nền tảng đám mây Databricks._
-
+Link deploy của Smart-GPA: https://smart-gpa.vercel.app
 ---
 
 ## Giới thiệu
