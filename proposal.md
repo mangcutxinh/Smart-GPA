@@ -51,9 +51,8 @@ Mục tiêu chính của dự án:
 | Vai trò | Tên hệ thống | Quyền chính |
 | --- | --- | --- |
 | Sinh viên | Student | Xem điểm cá nhân, chọn điểm chữ mục tiêu, nhận gợi ý điểm cuối kỳ cần đạt, xem cảnh báo học vụ. |
-| Giảng viên | Lecturer | Upload file điểm CSV, xem danh sách lớp học phần, cập nhật điểm thành phần, theo dõi cảnh báo của lớp. |
-| Quản trị học vụ | Academic Admin | Theo dõi dashboard toàn trường, xem danh sách sinh viên có nguy cơ, quản lý báo cáo học vụ. |
-| Admin hệ thống | System Admin | Quản lý tài khoản, phân quyền, cấu hình môn học, cấu hình thang điểm và tham số hệ thống. |
+| Giảng viên | Lecturer | Upload file điểm CSV/Excel, xem danh sách lớp học phần, cập nhật điểm thành phần, theo dõi cảnh báo của lớp. |
+| Quản trị viên | Admin | Quản lý tài khoản, phân quyền, cấu hình học kỳ/môn học, quản lý quy chế chấm điểm, xem nhật ký hoạt động và danh sách cảnh báo toàn trường. |
 
 ---
 
@@ -570,11 +569,10 @@ SmartGPA đã được triển khai đầy đủ và tích hợp thành công tr
 
 ### 15.2 Giao diện người dùng cao cấp (React Vite App)
 - **Thiết kế Soft Glassmorphism**: Toàn bộ giao diện áp dụng tone màu kem vani ngọt ngào (`#FAF6F0`), các viền kính mờ phản chiếu ánh sáng hồng tulip dịu mắt giúp giảm mỏi mắt cho người dùng.
-- **Tương tác 4 vai trò E2E**:
+- **Tương tác 3 vai trò E2E**:
   - *Sinh viên*: Chạy giả lập điểm thi cuối kỳ real-time theo mức điểm chữ mục tiêu (A, B+, B, C+, C, D+, D, F) qua thanh trượt tùy chỉnh cực nhạy.
-  - *Giảng viên*: Upload file điểm quá trình CSV trực tiếp lên FastAPI Server và nhận phản hồi tức thì.
-  - *Cố vấn học thuật*: Theo dõi danh sách sinh viên thuộc diện cảnh báo học vụ từ Cloud Databricks.
-  - *Quản trị viên*: Xem các thống kê tổng quan, đổi điểm số sinh viên, và cập nhật cấu hình quy chế chấm điểm.
+  - *Giảng viên*: Upload file điểm quá trình CSV/Excel trực tiếp lên FastAPI Server và nhận phản hồi tức thì.
+  - *Quản trị viên (Admin)*: Theo dõi danh sách sinh viên thuộc diện cảnh báo học vụ từ Cloud Databricks, xem các thống kê tổng quan, đổi điểm số sinh viên, và cập nhật cấu hình quy chế chấm điểm.
 
 ### 15.3 Kiểm thử & Chất lượng
 - Chạy toàn bộ **60 bài test kiểm thử tích hợp (Pytest)** đạt tỷ lệ pass **100%**, đảm bảo các luồng nghiệp vụ và logic tính điểm không bị lỗi hồi quy (regression errors).

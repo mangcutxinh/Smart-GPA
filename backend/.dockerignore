@@ -1,0 +1,10 @@
+.env
+.venv
+venv
+__pycache__/
+*.pyc
+.pytest_cache/
+.git
+.gitignore
+tests/
+storage_mock/raw/diem/diem_thao_*
