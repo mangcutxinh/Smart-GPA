@@ -150,7 +150,7 @@ Nền tảng hướng dịch vụ (SOA) kết hợp **FastAPI** + **Databricks C
 )
 
 # ─── CORS ────────────────────────────────────────────────────
-origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+origins = [o.strip().rstrip("/") for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
