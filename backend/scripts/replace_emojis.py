@@ -14,9 +14,6 @@ replacements_text = [
     # In nav labels - remove emoji prefix from strings
     ('\U0001f4ca Trang ch\u1ee7', 'Trang ch\u1ee7'),
     ('\U0001f4da Ch\u01b0\u01a1ng tr\u00ecnh khung', 'Ch\u01b0\u01a1ng tr\u00ecnh khung'),
-    ('\U0001f916 D\u1ef1 b\u00e1o \u0111i\u1ec3m', 'D\u1ef1 b\u00e1o \u0111i\u1ec3m'),
-    ('\U0001f9ee C\u00f4ng c\u1ee5 t\u00ednh \u0111i\u1ec3m', 'C\u00f4ng c\u1ee5 t\u00ednh \u0111i\u1ec3m'),
-    ('\U0001f4dd C\u00e1c m\u00f4n g\u1ea7n nh\u1ea5t', 'C\u00e1c m\u00f4n g\u1ea7n nh\u1ea5t'),
     ('\U0001f4da Ch\u01b0\u01a1ng tr\u00ecnh khung - Kh\u00f3a h\u1ecdc KHDL 2023', 'Ch\u01b0\u01a1ng tr\u00ecnh khung - Kh\u00f3a h\u1ecdc KHDL 2023'),
     ('\u2713 \u0110\u1ea1t', '\u0110\u1ea1t'),
     ('\u2713', '\u0110\u1ea1t'),

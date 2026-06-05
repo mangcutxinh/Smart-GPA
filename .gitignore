@@ -1,7 +1,16 @@
-backend/.env
 **/__pycache__/
 *.pyc
+backend/.env
 backend/storage_mock/
 storage_mock/
 frontend/.vite/
 frontend/dist/
+
+# Test grade files and templates (local testing only)
+/DHKHDL19A_grades/
+/DHKHDL19B_grades/
+/DHKHDL19A_grades.zip
+/DHKHDL19B_grades.zip
+/bang_diem_DHKHDL19A_NhapMonKHDL_v3.xlsx
+/databricks-code-template.md
+/replace_emojis.py
