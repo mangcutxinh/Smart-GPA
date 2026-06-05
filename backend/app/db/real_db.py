@@ -713,8 +713,6 @@ def _seed_assignments_and_students():
         if tong >= 7.0:  return ("B",  3.0)
         if tong >= 6.5:  return ("C+", 2.5)
         if tong >= 5.5:  return ("C",  2.0)
-        if tong >= 5.0:  return ("D+", 1.5)
-        if tong >= 4.0:  return ("D",  1.0)
         return ("F", 0.0)
 
     for mssv, ho_ten, gioi_tinh, ngay_sinh, lop in all_students:
@@ -776,9 +774,14 @@ def _seed_assignments_and_students():
                     ck = round(min(10.0, base + rng.uniform(-0.5, 1.0)), 1)
                     tong = round(0.2 * ((tk1 + tk2) / 2.0) + 0.3 * gk + 0.5 * ck, 1)
                     tong = min(10.0, tong)
-                    diem_chu, diem_he4 = _grade_letter(tong)
-                    ket_qua = "Dat" if tong >= 4.0 else "Khong dat"
-                    status = "An toan" if tong >= 4.0 else "Nguy co"
+                    if ck <= 3.0 or tong < 5.5:
+                        diem_chu, diem_he4 = "F", 0.0
+                        ket_qua = "Khong dat"
+                        status = "Nguy co"
+                    else:
+                        diem_chu, diem_he4 = _grade_letter(tong)
+                        ket_qua = "Dat"
+                        status = "An toan"
 
                 MOCK_GOLD_DB[key] = {
                     "student_id": mssv, "student_name": ho_ten,
@@ -801,9 +804,14 @@ def _seed_assignments_and_students():
                     status = "An toan" if avg_th >= 4.0 else "Nguy co"
                 else:
                     ck = avg_th; tong = ck
-                    diem_chu, diem_he4 = _grade_letter(tong)
-                    ket_qua = "Dat" if tong >= 4.0 else "Khong dat"
-                    status = "An toan" if tong >= 4.0 else "Nguy co"
+                    if tong < 5.5:
+                        diem_chu, diem_he4 = "F", 0.0
+                        ket_qua = "Khong dat"
+                        status = "Nguy co"
+                    else:
+                        diem_chu, diem_he4 = _grade_letter(tong)
+                        ket_qua = "Dat"
+                        status = "An toan"
 
                 MOCK_GOLD_DB[key] = {
                     "student_id": mssv, "student_name": ho_ten,
@@ -830,11 +838,17 @@ def _seed_assignments_and_students():
                 else:
                     ck = round(min(10.0, base + rng.uniform(-0.5, 1.0)), 1)
                     tk_avg = round(sum(tk_lt) / len(tk_lt), 1)
-                    tong = round(0.2 * tk_avg + 0.3 * gk_lt + 0.2 * th_val + 0.3 * ck, 1)
+                    lt_score = 0.2 * tk_avg + 0.3 * gk_lt + 0.5 * ck
+                    tong = round((lt_score * 2.0 + th_val * 1.0) / 3.0, 1)
                     tong = min(10.0, tong)
-                    diem_chu, diem_he4 = _grade_letter(tong)
-                    ket_qua = "Dat" if tong >= 4.0 else "Khong dat"
-                    status = "An toan" if tong >= 4.0 else "Nguy co"
+                    if ck <= 3.0 or th_val < 3.0 or tong < 5.5:
+                        diem_chu, diem_he4 = "F", 0.0
+                        ket_qua = "Khong dat"
+                        status = "Nguy co"
+                    else:
+                        diem_chu, diem_he4 = _grade_letter(tong)
+                        ket_qua = "Dat"
+                        status = "An toan"
 
                 MOCK_GOLD_DB[key] = {
                     "student_id": mssv, "student_name": ho_ten,

@@ -710,8 +710,12 @@ export default function App() {
 
         const txAvg = txs.reduce((a, b) => a + b, 0) / txs.length;
         finalScore = txAvg * 0.2 + gk * 0.3 + ck * 0.5;
-        isPass = finalScore >= 4.0;
-        message = isPass ? "Chúc mừng! Bạn đã đạt học phần này." : "Rất tiếc! Điểm tổng kết dưới 4.0, bạn phải học lại học phần này.";
+        isPass = finalScore >= 5.5 && ck > 3.0;
+        if (ck <= 3.0) {
+          message = "Rất tiếc! Bạn bị điểm liệt thi cuối kỳ (<= 3.0). Kết quả: KHÔNG ĐẠT (F).";
+        } else {
+          message = isPass ? "Chúc mừng! Bạn đã đạt học phần này." : "Rất tiếc! Điểm tổng kết dưới 5.5 (GPA <= 1.50), bạn phải học lại học phần này.";
+        }
       } else if (calcType === "thuc_hanh") {
         const ths = [th1Input, th2Input, th3Input, th4Input].map(parseVal).filter((x): x is number => x !== null);
         if (ths.length === 0) {
@@ -719,12 +723,12 @@ export default function App() {
         }
         finalScore = ths.reduce((a, b) => a + b, 0) / ths.length;
         const hasLieth = ths.some(s => s < 3.0);
-        isPass = finalScore >= 4.0 && !hasLieth;
+        isPass = finalScore >= 5.5 && !hasLieth;
         if (hasLieth) {
           isPass = false;
           message = "Bạn bị điểm liệt thực hành (có buổi < 3.0). Kết quả: KHÔNG ĐẠT (F).";
         } else {
-          message = isPass ? "Chúc mừng! Bạn đã đạt học phần thực hành." : "Rất tiếc! Điểm trung bình thực hành dưới 4.0.";
+          message = isPass ? "Chúc mừng! Bạn đã đạt học phần thực hành." : "Rất tiếc! Điểm trung bình thực hành dưới 5.5 (GPA <= 1.50).";
         }
       } else { // tich_hop
         const txs = [tx1Input, tx2Input, tx3Input, tx4Input].map(parseVal).filter((x): x is number => x !== null);
@@ -744,13 +748,16 @@ export default function App() {
         const thAvg = ths.reduce((a, b) => a + b, 0) / ths.length;
         
         finalScore = (lt_score * 2 + thAvg * 1) / 3;
-        isPass = finalScore >= 4.0 && thAvg >= 3.0;
+        isPass = finalScore >= 5.5 && thAvg >= 3.0 && ck > 3.0;
         
         if (thAvg < 3.0) {
           isPass = false;
           message = "CẢNH BÁO: Bạn bị điểm liệt phần thực hành (< 3.0). Kết quả: KHÔNG ĐẠT (F).";
+        } else if (ck <= 3.0) {
+          isPass = false;
+          message = "CẢNH BÁO: Bạn bị điểm liệt thi cuối kỳ lý thuyết (<= 3.0). Kết quả: KHÔNG ĐẠT (F).";
         } else {
-          message = isPass ? "Chúc mừng! Bạn đã đạt học phần tích hợp." : "Rất tiếc! Điểm tổng kết tích hợp dưới 4.0.";
+          message = isPass ? "Chúc mừng! Bạn đã đạt học phần tích hợp." : "Rất tiếc! Điểm tổng kết tích hợp dưới 5.5 (GPA <= 1.50).";
         }
       }
 
@@ -777,12 +784,6 @@ export default function App() {
       } else if (finalScore >= 5.5) {
         letterGrade = "C";
         system4Grade = 2.0;
-      } else if (finalScore >= 5.0) {
-        letterGrade = "D+";
-        system4Grade = 1.5;
-      } else if (finalScore >= 4.0) {
-        letterGrade = "D";
-        system4Grade = 1.0;
       } else {
         letterGrade = "F";
         system4Grade = 0.0;
@@ -854,7 +855,7 @@ export default function App() {
           throw new Error(`Môn '${r.name}': Số tín chỉ phải lớn hơn 0`);
         }
 
-        // Convert course score to System 4
+        // Convert course score to System 4 (enforcing overall GPA > 1.50)
         let sys4 = 0;
         if (gradeVal >= 9.0) sys4 = 4.0;
         else if (gradeVal >= 8.5) sys4 = 3.8;
@@ -862,9 +863,7 @@ export default function App() {
         else if (gradeVal >= 7.0) sys4 = 3.0;
         else if (gradeVal >= 6.0) sys4 = 2.5;
         else if (gradeVal >= 5.5) sys4 = 2.0;
-        else if (gradeVal >= 5.0) sys4 = 1.5;
-        else if (gradeVal >= 4.0) sys4 = 1.0;
-        else sys4 = 0.0;
+        else sys4 = 0.0; // D+ (1.5) and D (1.0) are now failing and receive GPA 0.0
 
         totalCredits += creditsVal;
         sumGpa10 += gradeVal * creditsVal;

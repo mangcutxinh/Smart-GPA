@@ -332,7 +332,12 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
                             qt_10 = silver_row.get("qt_10")
                             qt_val = qt_10 if qt_10 is not None else diem_tich_luy
                             
+                            # Điểm thi cuối kỳ nếu có
+                            ck_val = silver_row.get("diem_cuoi_ky")
+                            
                             if loai_hp in ("thuc_hanh", "tich_hop") and diem_trung_binh_th < 3.0:
+                                diem_chu = "F"
+                            elif ck_val is not None and ck_val <= 3.0:
                                 diem_chu = "F"
                             elif qt_val >= 9.0:
                                 diem_chu = "A+"
@@ -346,17 +351,15 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
                                 diem_chu = "C+"
                             elif qt_val >= 5.5:
                                 diem_chu = "C"
-                            elif qt_val >= 5.0:
-                                diem_chu = "D+"
-                            elif qt_val >= 4.0:
-                                diem_chu = "D"
                             else:
                                 diem_chu = "F"
                             
                             # Tính status_canh_bao_final
                             if loai_hp in ("thuc_hanh", "tich_hop") and diem_trung_binh_th < 3.0:
                                 status_canh_bao_final = "CANH BAO: LIET THUC HANH (ROT MON)"
-                            elif qt_val < 4.0:
+                            elif ck_val is not None and ck_val <= 3.0:
+                                status_canh_bao_final = "CANH BAO: LIET THI CUOI KY (ROT MON)"
+                            elif qt_val < 5.5:
                                 status_canh_bao_final = "Nguy co rot mon"
                             else:
                                 status_canh_bao_final = "An toan"
@@ -370,34 +373,46 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
             logger.error(f"Lỗi kết nối hoặc truy vấn Databricks trong lay_diem_sinh_vien_tu_cloud: {e}. Fallback về mock data.", exc_info=True)
     else:
         logger.info("Chưa cấu hình Databricks Cloud. Fallback về Mock Database cục bộ.")
-
+ 
     # ─── Fallback về Mock Database ──────────────────────────────────────
     key = (student_id, ma_mon)
     mock_record = MOCK_GOLD_DB.get(key)
     if not mock_record:
         return None
-
+ 
     # Ánh xạ thông minh từ mock record sang cấu trúc tuple của câu SELECT
     loai_hp = mock_record.get("loai_hoc_phan", "ly_thuyet")
     tong_so_chi = mock_record.get("tong_so_chi", 2)
     status_canh_bao = mock_record.get("status_canh_bao", "An toan")
     status_canh_bao_final = "An toan" if status_canh_bao == "An toan" else "Nguy co"
-
+ 
     # Tính toán các đầu điểm giả lập tương ứng
     if loai_hp == "ly_thuyet":
         tk_list = mock_record.get("diem_thong_thuong") or []
         tk_avg = sum(tk_list) / len(tk_list) if tk_list else 8.0
         gk = mock_record.get("diem_giua_ky")
         gk_val = gk if gk is not None else 8.0
-        diem_tich_luy = round(0.2 * tk_avg + 0.3 * gk_val, 2)
+        ck = mock_record.get("diem_cuoi_ky")
+        ck_val = ck if ck is not None else 8.0
+        diem_tich_luy = round(0.2 * tk_avg + 0.3 * gk_val + 0.5 * ck_val, 2)
         diem_trung_binh_th = 0.0
-        diem_chu = "B+"
+        if ck_val <= 3.0 or diem_tich_luy < 5.5:
+            diem_chu = "F"
+            status_canh_bao_final = "Nguy co"
+        else:
+            diem_chu = "B+"
+            status_canh_bao_final = "An toan"
     elif loai_hp == "thuc_hanh":
         th_list = mock_record.get("diem_thuc_hanh_hien_tai") or []
         th_avg = sum(th_list) / len(th_list) if th_list else 8.0
         diem_tich_luy = round(th_avg, 2)
         diem_trung_binh_th = round(th_avg, 2)
-        diem_chu = "B+"
+        if diem_tich_luy < 5.5:
+            diem_chu = "F"
+            status_canh_bao_final = "Nguy co"
+        else:
+            diem_chu = "B+"
+            status_canh_bao_final = "An toan"
     else: # tich_hop
         th = mock_record.get("diem_thuc_hanh_tich_hop")
         th_val = th if th is not None else 8.0
@@ -405,13 +420,20 @@ def lay_diem_sinh_vien_tu_cloud(student_id: str, ma_mon: str):
         tk_lt_avg = sum(tk_lt_list) / len(tk_lt_list) if tk_lt_list else 8.0
         gk_lt = mock_record.get("diem_giua_ky_lt")
         gk_lt_val = gk_lt if gk_lt is not None else 8.0
-        lt_val = 0.2 * tk_lt_avg + 0.3 * gk_lt_val
+        ck = mock_record.get("diem_cuoi_ky")
+        ck_val = ck if ck is not None else 8.0
+        lt_val = 0.2 * tk_lt_avg + 0.3 * gk_lt_val + 0.5 * ck_val
         chi_lt = mock_record.get("so_chi_lt", 2)
         chi_th = mock_record.get("so_chi_th", 1)
         diem_tich_luy = round((lt_val * chi_lt + th_val * chi_th) / (chi_lt + chi_th), 2)
         diem_trung_binh_th = round(th_val, 2)
-        diem_chu = "B+"
-
+        if th_val < 3.0 or ck_val <= 3.0 or diem_tich_luy < 5.5:
+            diem_chu = "F"
+            status_canh_bao_final = "Nguy co"
+        else:
+            diem_chu = "B+"
+            status_canh_bao_final = "An toan"
+ 
     return (diem_tich_luy, loai_hp, tong_so_chi, diem_trung_binh_th, diem_chu, status_canh_bao_final)
 
 
