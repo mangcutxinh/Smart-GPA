@@ -216,3 +216,23 @@ def check_run_status(run_id: int) -> Dict[str, Any]:
             "result_state": result_state,
             "message": state.get("state_message") or ""
         }
+
+
+def download_workspace_file(workspace_path: str) -> bytes:
+    """Download a file from Databricks Workspace (e.g. /Shared/smartgpa_processed/...) using Workspace Files API"""
+    clean_path = workspace_path
+    if clean_path.startswith("file:"):
+        clean_path = clean_path.replace("file:", "")
+    if clean_path.startswith("dbfs:"):
+        clean_path = clean_path.replace("dbfs:", "")
+    if not clean_path.startswith("/Workspace"):
+        clean_path = f"/Workspace{clean_path}"
+        
+    with httpx.Client(timeout=60) as client:
+        url = f"{_api_base()}/api/2.0/workspace-files/files{clean_path}"
+        logger.info(f"Downloading file from Databricks: {url}")
+        response = client.get(url, headers=_headers())
+        if response.status_code >= 400:
+            raise DatabricksPipelineError(f"Failed to download workspace file from Databricks: {response.text}")
+        return response.content
+
