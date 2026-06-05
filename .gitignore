@@ -1,0 +1,7 @@
+backend/.env
+**/__pycache__/
+*.pyc
+backend/storage_mock/
+storage_mock/
+frontend/.vite/
+frontend/dist/
